@@ -19,6 +19,14 @@ function NativeEditorTabLayout() {
         <Icon sf={{ default: "checklist", selected: "checklist.checked" }} />
         <Label>My Work</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="notifications">
+        <Icon sf={{ default: "bell", selected: "bell.fill" }} />
+        <Label>Alerts</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person", selected: "person.fill" }} />
+        <Label>Profile</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -37,10 +45,7 @@ function ClassicEditorTabLayout() {
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: true,
         headerStyle: { backgroundColor: colors.background },
-        headerTitleStyle: {
-          fontFamily: "Inter_600SemiBold",
-          color: colors.foreground,
-        },
+        headerTitleStyle: { fontFamily: "Inter_600SemiBold", color: colors.foreground },
         headerShadowVisible: false,
         tabBarStyle: {
           position: "absolute",
@@ -52,42 +57,36 @@ function ClassicEditorTabLayout() {
         },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
+            <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
           ) : isWeb ? (
-            <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]}
-            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
           ) : null,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="house" tintColor={color} size={24} />
-            ) : (
-              <Feather name="home" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="work"
-        options={{
-          title: "My Work",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="checklist" tintColor={color} size={24} />
-            ) : (
-              <Feather name="check-square" size={22} color={color} />
-            ),
-        }}
-      />
+      <Tabs.Screen name="index" options={{
+        title: "Dashboard",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="house" tintColor={color} size={24} />
+          : <Feather name="home" size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="work" options={{
+        title: "My Work",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="checklist" tintColor={color} size={24} />
+          : <Feather name="check-square" size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="notifications" options={{
+        title: "Alerts",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="bell" tintColor={color} size={24} />
+          : <Feather name="bell" size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="profile" options={{
+        title: "My Profile",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="person" tintColor={color} size={24} />
+          : <Feather name="user" size={22} color={color} />,
+      }} />
     </Tabs>
   );
 }

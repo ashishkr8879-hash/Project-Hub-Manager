@@ -23,6 +23,10 @@ function NativeAdminTabLayout() {
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <Label>Create</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="notifications">
+        <Icon sf={{ default: "bell", selected: "bell.fill" }} />
+        <Label>Inbox</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -41,10 +45,7 @@ function ClassicAdminTabLayout() {
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: true,
         headerStyle: { backgroundColor: colors.background },
-        headerTitleStyle: {
-          fontFamily: "Inter_600SemiBold",
-          color: colors.foreground,
-        },
+        headerTitleStyle: { fontFamily: "Inter_600SemiBold", color: colors.foreground },
         headerShadowVisible: false,
         tabBarStyle: {
           position: "absolute",
@@ -56,54 +57,36 @@ function ClassicAdminTabLayout() {
         },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
+            <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
           ) : isWeb ? (
-            <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]}
-            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
           ) : null,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="chart.bar" tintColor={color} size={24} />
-            ) : (
-              <Feather name="bar-chart-2" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="projects"
-        options={{
-          title: "Projects",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="folder" tintColor={color} size={24} />
-            ) : (
-              <Feather name="folder" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="create"
-        options={{
-          title: "New Project",
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="plus.circle" tintColor={color} size={24} />
-            ) : (
-              <Feather name="plus-circle" size={22} color={color} />
-            ),
-        }}
-      />
+      <Tabs.Screen name="index" options={{
+        title: "Dashboard",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="chart.bar" tintColor={color} size={24} />
+          : <Feather name="bar-chart-2" size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="projects" options={{
+        title: "Projects",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="folder" tintColor={color} size={24} />
+          : <Feather name="folder" size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="create" options={{
+        title: "New Project",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="plus.circle" tintColor={color} size={24} />
+          : <Feather name="plus-circle" size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="notifications" options={{
+        title: "Inbox",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="bell" tintColor={color} size={24} />
+          : <Feather name="bell" size={22} color={color} />,
+      }} />
     </Tabs>
   );
 }

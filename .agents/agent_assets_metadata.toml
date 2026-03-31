@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "MRJMeGBYt_YRscrzLxQZO"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "project manager icon"
+
+[[generated]]
+id = "sGEGTrfiVyVtV4qkTXUB2"
+uri = "file://artifacts/mobile/assets/images/splash-icon.png"
+type = "image"
+title = "splash icon"

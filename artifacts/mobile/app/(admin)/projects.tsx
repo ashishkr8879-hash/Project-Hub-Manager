@@ -1,8 +1,12 @@
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Linking,
+  Modal,
   Platform,
   StyleSheet,
   Text,
@@ -11,12 +15,25 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { StatusBadge } from "@/components/StatusBadge";
 import { ProjectCard } from "@/components/ProjectCard";
 import { useColors } from "@/hooks/useColors";
-import { fetchProjects, type Project } from "@/hooks/useApi";
+import {
+  fetchProjects,
+  fetchProjectReferences,
+  addReference,
+  deleteReference,
+  type Project,
+  type ProjectReference,
+} from "@/hooks/useApi";
 
 const FILTERS = ["All", "Pending", "In Progress", "Completed"] as const;
+
+const TYPE_ICONS: Record<string, string> = {
+  ugc: "video", branded: "star", corporate: "briefcase",
+  wedding: "heart", social_media: "instagram", other: "more-horizontal",
+};
 
 export default function ProjectsScreen() {
   const colors = useColors();
@@ -24,6 +41,7 @@ export default function ProjectsScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const [search, setSearch] = useState("");
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const { data: projects = [], isLoading, refetch } = useQuery({
     queryKey: ["projects"],
@@ -62,57 +80,34 @@ export default function ProjectsScreen() {
       </View>
 
       <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        data={FILTERS}
-        keyExtractor={(item) => item}
-        style={styles.filterList}
-        contentContainerStyle={styles.filterContent}
+        horizontal showsHorizontalScrollIndicator={false}
+        data={FILTERS} keyExtractor={(item) => item}
+        style={styles.filterList} contentContainerStyle={styles.filterContent}
         renderItem={({ item }) => {
           const active = item === filter;
           return (
-            <TouchableOpacity
-              onPress={() => setFilter(item)}
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: active ? colors.primary : colors.muted,
-                  borderColor: active ? colors.primary : colors.border,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  { color: active ? "#fff" : colors.mutedForeground },
-                ]}
-              >
-                {item}
-              </Text>
+            <TouchableOpacity onPress={() => setFilter(item)}
+              style={[styles.filterChip, { backgroundColor: active ? colors.primary : colors.muted, borderColor: active ? colors.primary : colors.border }]}>
+              <Text style={[styles.filterText, { color: active ? "#fff" : colors.mutedForeground }]}>{item}</Text>
             </TouchableOpacity>
           );
         }}
       />
 
       {isLoading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <View style={styles.loader}><ActivityIndicator color={colors.primary} /></View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(p) => p.id}
-          renderItem={({ item }) => <ProjectCard project={item} />}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: bottomPad + 100 },
-          ]}
+          renderItem={({ item }) => (
+            <ProjectCard project={item} onPress={() => setSelectedProject(item)} />
+          )}
+          contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad + 100 }]}
           ListEmptyComponent={
             <View style={[styles.empty, { borderColor: colors.border }]}>
               <Feather name="folder" size={32} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                No projects found
-              </Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No projects found</Text>
             </View>
           }
           refreshing={isLoading}
@@ -120,45 +115,312 @@ export default function ProjectsScreen() {
           scrollEnabled
         />
       )}
+
+      {selectedProject && (
+        <ProjectDetailModal
+          project={selectedProject}
+          colors={colors}
+          insets={insets}
+          onClose={() => setSelectedProject(null)}
+        />
+      )}
     </View>
+  );
+}
+
+function ProjectDetailModal({
+  project, colors, insets, onClose,
+}: {
+  project: Project;
+  colors: ReturnType<typeof useColors>;
+  insets: ReturnType<typeof import("react-native-safe-area-context").useSafeAreaInsets>;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const [showAddRef, setShowAddRef] = useState(false);
+  const [refTitle, setRefTitle] = useState("");
+  const [refUrl, setRefUrl] = useState("");
+  const [refNote, setRefNote] = useState("");
+  const [addingRef, setAddingRef] = useState(false);
+
+  const isUGC = project.projectType === "ugc" && project.modelCost > 0;
+  const netValue = project.totalValue - (project.modelCost || 0);
+
+  const { data: references = [], isLoading: refsLoading, refetch: refetchRefs } = useQuery({
+    queryKey: ["project-refs", project.id],
+    queryFn: () => fetchProjectReferences(project.id),
+  });
+
+  async function handleAddRef() {
+    if (!refTitle.trim()) { Alert.alert("Required", "Title is required"); return; }
+    setAddingRef(true);
+    try {
+      await addReference(project.id, { title: refTitle.trim(), url: refUrl.trim() || undefined, note: refNote.trim() });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setRefTitle(""); setRefUrl(""); setRefNote(""); setShowAddRef(false);
+      refetchRefs();
+    } catch (e: unknown) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Failed to add reference");
+    } finally { setAddingRef(false); }
+  }
+
+  async function handleDeleteRef(ref: ProjectReference) {
+    Alert.alert("Remove Reference", `Remove "${ref.title}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove", style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteReference(ref.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            refetchRefs();
+            queryClient.invalidateQueries({ queryKey: ["project-refs"] });
+          } catch { Alert.alert("Error", "Could not remove reference"); }
+        },
+      },
+    ]);
+  }
+
+  const progress = project.totalDeliverables > 0
+    ? project.completedDeliverables / project.totalDeliverables : 0;
+
+  const typeIcon = (TYPE_ICONS[project.projectType] ?? "folder") as never;
+
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalSheet, { backgroundColor: colors.background, paddingBottom: bottomPad }]}>
+          {/* Header */}
+          <View style={[styles.modalTop, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleBlock}>
+                <View style={styles.modalTitleRow}>
+                  <Feather name={typeIcon} size={14} color={colors.primary} />
+                  <Text style={[styles.modalProjectName, { color: colors.foreground }]} numberOfLines={1}>{project.projectName}</Text>
+                </View>
+                <Text style={[styles.modalClientName, { color: colors.mutedForeground }]}>{project.clientName}</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.muted }]}>
+                <Feather name="x" size={18} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <FlatList
+            data={references}
+            keyExtractor={(r) => r.id}
+            contentContainerStyle={[styles.detailContent, { paddingBottom: 20 }]}
+            ListHeaderComponent={
+              <>
+                {/* Status + progress */}
+                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={styles.sectionRow}>
+                    <StatusBadge status={project.status} />
+                    <Text style={[styles.sectionSubText, { color: colors.mutedForeground }]}>
+                      {project.completedDeliverables}/{project.totalDeliverables} deliverables done
+                    </Text>
+                  </View>
+                  <View style={[styles.progressBar, { backgroundColor: colors.muted }]}>
+                    <View style={[styles.progressFill, {
+                      backgroundColor: project.status === "completed" ? colors.success : colors.primary,
+                      width: `${Math.round(progress * 100)}%` as `${number}%`,
+                    }]} />
+                  </View>
+                </View>
+
+                {/* Pricing */}
+                {isUGC ? (
+                  <View style={[styles.ugcPricingBox, { backgroundColor: "#fef9c3", borderColor: "#fde047" }]}>
+                    <View style={styles.ugcPricingRow}>
+                      <Text style={[styles.ugcPricingLabel, { color: "#92400e" }]}>Total Value</Text>
+                      <Text style={[styles.ugcPricingValue, { color: colors.foreground }]}>${project.totalValue.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.ugcPricingRow}>
+                      <Text style={[styles.ugcPricingLabel, { color: "#b91c1c" }]}>– Model Cost</Text>
+                      <Text style={[styles.ugcPricingValue, { color: "#b91c1c" }]}>–${project.modelCost.toLocaleString()}</Text>
+                    </View>
+                    <View style={[styles.ugcPricingDivider, { backgroundColor: "#fde047" }]} />
+                    <View style={styles.ugcPricingRow}>
+                      <Text style={[styles.ugcPricingLabel, { color: "#166534", fontFamily: "Inter_700Bold" }]}>Net Editor Payout</Text>
+                      <Text style={[styles.ugcNetValue, { color: "#15803d" }]}>${netValue.toLocaleString()}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={[styles.simpleValueBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Feather name="dollar-sign" size={16} color={colors.success} />
+                    <Text style={[styles.simpleValueText, { color: colors.foreground }]}>
+                      Project Value: <Text style={{ color: colors.success, fontFamily: "Inter_700Bold" }}>${project.totalValue.toLocaleString()}</Text>
+                    </Text>
+                  </View>
+                )}
+
+                {/* Client contact */}
+                {(project.clientPhone || project.clientEmail) && (
+                  <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Client Contact</Text>
+                    {project.clientPhone && (
+                      <TouchableOpacity onPress={() => Linking.openURL(`tel:${project.clientPhone}`)} style={styles.contactRow}>
+                        <Feather name="phone" size={14} color={colors.primary} />
+                        <Text style={[styles.contactText, { color: colors.primary }]}>{project.clientPhone}</Text>
+                      </TouchableOpacity>
+                    )}
+                    {project.clientEmail && (
+                      <TouchableOpacity onPress={() => Linking.openURL(`mailto:${project.clientEmail}`)} style={styles.contactRow}>
+                        <Feather name="mail" size={14} color={colors.primary} />
+                        <Text style={[styles.contactText, { color: colors.primary }]}>{project.clientEmail}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
+                {/* Editor + deadline + notes */}
+                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={styles.metaRow}>
+                    <Feather name="user" size={14} color={colors.mutedForeground} />
+                    <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{project.editorName}</Text>
+                  </View>
+                  {project.deadline && (
+                    <View style={styles.metaRow}>
+                      <Feather name="calendar" size={14} color={colors.warning} />
+                      <Text style={[styles.metaText, { color: colors.warning }]}>
+                        Due {new Date(project.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                      </Text>
+                    </View>
+                  )}
+                  {project.notes && (
+                    <View style={[styles.notesBox, { backgroundColor: colors.secondary }]}>
+                      <Feather name="message-circle" size={13} color={colors.primary} />
+                      <Text style={[styles.notesText, { color: colors.foreground }]}>{project.notes}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* References header */}
+                <View style={styles.refsHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>References ({references.length})</Text>
+                  <TouchableOpacity onPress={() => setShowAddRef(!showAddRef)}
+                    style={[styles.addRefBtn, { backgroundColor: colors.primary }]}>
+                    <Feather name={showAddRef ? "minus" : "plus"} size={14} color="#fff" />
+                    <Text style={styles.addRefBtnText}>{showAddRef ? "Cancel" : "Add"}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Add reference form */}
+                {showAddRef && (
+                  <View style={[styles.addRefForm, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                      value={refTitle} onChangeText={setRefTitle} placeholder="Title *" placeholderTextColor={colors.mutedForeground} />
+                    <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                      value={refUrl} onChangeText={setRefUrl} placeholder="Link (optional)" placeholderTextColor={colors.mutedForeground}
+                      autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+                    <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                      value={refNote} onChangeText={setRefNote} placeholder="Note for editor" placeholderTextColor={colors.mutedForeground} multiline />
+                    <TouchableOpacity onPress={handleAddRef} disabled={addingRef}
+                      style={[styles.refSaveBtn, { backgroundColor: addingRef ? colors.muted : colors.primary }]}>
+                      {addingRef ? <ActivityIndicator color="#fff" size="small" />
+                        : <Text style={styles.refSaveBtnText}>Save Reference</Text>}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            }
+            renderItem={({ item }) => (
+              <View style={[styles.refCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[styles.refIcon, { backgroundColor: `${colors.primary}15` }]}>
+                  <Feather name="link" size={14} color={colors.primary} />
+                </View>
+                <View style={styles.refContent}>
+                  <Text style={[styles.refTitle, { color: colors.foreground }]}>{item.title}</Text>
+                  {item.url && (
+                    <TouchableOpacity onPress={() => Linking.openURL(item.url!).catch(() => {})}>
+                      <Text style={[styles.refUrl, { color: colors.primary }]} numberOfLines={1}>{item.url}</Text>
+                    </TouchableOpacity>
+                  )}
+                  {item.note && <Text style={[styles.refNote, { color: colors.mutedForeground }]}>{item.note}</Text>}
+                </View>
+                <TouchableOpacity onPress={() => handleDeleteRef(item)} style={styles.refDelete}>
+                  <Feather name="trash-2" size={15} color={colors.destructive} />
+                </TouchableOpacity>
+              </View>
+            )}
+            ListEmptyComponent={
+              refsLoading ? (
+                <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
+              ) : (
+                <View style={[styles.emptyRefs, { borderColor: colors.border }]}>
+                  <Feather name="link-2" size={24} color={colors.mutedForeground} />
+                  <Text style={[styles.emptyRefsText, { color: colors.mutedForeground }]}>No references added yet</Text>
+                </View>
+              )
+            }
+            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          />
+        </View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    margin: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
+  searchBar: { flexDirection: "row", alignItems: "center", margin: 16, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, gap: 8 },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   filterList: { maxHeight: 44 },
   filterContent: { paddingHorizontal: 16, gap: 8 },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
   filterText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   loader: { flex: 1, alignItems: "center", paddingTop: 60 },
   listContent: { paddingHorizontal: 16, paddingTop: 12 },
-  empty: {
-    alignItems: "center",
-    padding: 40,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 8,
-    margin: 16,
-  },
+  empty: { alignItems: "center", padding: 40, borderRadius: 16, borderWidth: 1, gap: 8, margin: 16 },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  // Modal
+  modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
+  modalSheet: { maxHeight: "92%", borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: "hidden" },
+  modalTop: { paddingBottom: 16, paddingHorizontal: 16 },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#e2e8f0", alignSelf: "center", marginVertical: 12 },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 },
+  modalTitleBlock: { flex: 1, gap: 3 },
+  modalTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  modalProjectName: { fontSize: 16, fontFamily: "Inter_700Bold", flex: 1 },
+  modalClientName: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  closeBtn: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  detailContent: { padding: 16, gap: 12 },
+  section: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
+  sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  sectionSubText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  sectionTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  progressBar: { height: 8, borderRadius: 4, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 4 },
+  ugcPricingBox: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 8 },
+  ugcPricingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  ugcPricingLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  ugcPricingValue: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  ugcPricingDivider: { height: 1, marginVertical: 2 },
+  ugcNetValue: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  simpleValueBox: { flexDirection: "row", alignItems: "center", borderRadius: 14, borderWidth: 1, padding: 14, gap: 8 },
+  simpleValueText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  contactRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  contactText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  metaText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  notesBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 10, borderRadius: 10 },
+  notesText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  refsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  addRefBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, gap: 4 },
+  addRefBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  addRefForm: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
+  refInput: { padding: 12, borderRadius: 10, borderWidth: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  refSaveBtn: { padding: 12, borderRadius: 12, alignItems: "center" },
+  refSaveBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  refCard: { flexDirection: "row", alignItems: "flex-start", borderRadius: 14, borderWidth: 1, padding: 12, gap: 10 },
+  refIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  refContent: { flex: 1, gap: 3 },
+  refTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  refUrl: { fontSize: 12, fontFamily: "Inter_400Regular", textDecorationLine: "underline" },
+  refNote: { fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  refDelete: { padding: 4 },
+  emptyRefs: { alignItems: "center", padding: 24, borderRadius: 14, borderWidth: 1, gap: 6 },
+  emptyRefsText: { fontSize: 13, fontFamily: "Inter_400Regular" },
 });

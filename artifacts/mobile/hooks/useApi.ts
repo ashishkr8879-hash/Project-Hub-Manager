@@ -13,11 +13,18 @@ export interface Editor {
   joinedAt: string;
 }
 
+export type ProjectType = "ugc" | "branded" | "corporate" | "wedding" | "social_media" | "other";
+
 export interface Project {
   id: string;
+  clientId?: string;
   clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
   projectName: string;
+  projectType: ProjectType;
   totalValue: number;
+  modelCost: number;
   totalDeliverables: number;
   editorId: string;
   editorName: string;
@@ -28,9 +35,29 @@ export interface Project {
   notes?: string;
 }
 
+export interface Client {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  businessType: string;
+  city: string;
+  createdAt: string;
+}
+
+export interface ProjectReference {
+  id: string;
+  projectId: string;
+  title: string;
+  url?: string;
+  note: string;
+  addedAt: string;
+}
+
 export interface DashboardStats {
   totalProjects: number;
   totalEditors: number;
+  totalClients: number;
   todayRevenue: number;
   activeProjects: number;
   completedProjects: number;
@@ -66,6 +93,27 @@ export interface AppNotification {
   createdAt: string;
 }
 
+export interface AdminProfile {
+  id: string;
+  name: string;
+  businessName: string;
+  email: string;
+  phone: string;
+  stats: {
+    totalProjects: number;
+    completedProjects: number;
+    activeProjects: number;
+    totalClients: number;
+    totalEditors: number;
+    totalRevenue: number;
+    netRevenue: number;
+    totalUgcProjects: number;
+    totalModelCost: number;
+    pendingReviews: number;
+  };
+  recentClients: Client[];
+}
+
 export interface EditorProfile {
   id: string;
   name: string;
@@ -89,10 +137,6 @@ export interface EditorProfile {
 
 export interface LoginPayload { username: string; password: string; }
 export interface LoginResponse { id: string; name: string; role: "admin" | "editor"; editorId?: string; }
-export interface CreateProjectPayload {
-  clientName: string; projectName: string; totalValue: number;
-  totalDeliverables: number; editorId: string; deadline?: string; notes?: string;
-}
 
 // ─── Fetch helper ─────────────────────────────────────────────────────────────
 
@@ -108,15 +152,48 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-// ─── API functions ────────────────────────────────────────────────────────────
+// ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const login = (p: LoginPayload) =>
   apiFetch<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify(p) });
 
+// ─── Admin ────────────────────────────────────────────────────────────────────
+
+export const fetchAdminProfile = () => apiFetch<AdminProfile>("/admin/profile");
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
+
+export const fetchClients = () => apiFetch<Client[]>("/clients");
+export const createClient = (body: Omit<Client, "id" | "createdAt">) =>
+  apiFetch<Client>("/clients", { method: "POST", body: JSON.stringify(body) });
+export const deleteClient = (id: string) =>
+  apiFetch<{ success: boolean }>(`/clients/${id}`, { method: "DELETE" });
+
+// ─── Editors ──────────────────────────────────────────────────────────────────
+
 export const fetchEditors = () => apiFetch<Editor[]>("/editors");
+export const fetchEditorProfile = (id: string) => apiFetch<EditorProfile>(`/editors/${id}/profile`);
+
+// ─── Projects ─────────────────────────────────────────────────────────────────
+
 export const fetchProjects = () => apiFetch<Project[]>("/projects");
 export const fetchEditorProjects = (id: string) => apiFetch<Project[]>(`/projects/editor/${id}`);
 export const fetchDashboardStats = () => apiFetch<DashboardStats>("/dashboard/stats");
+
+export interface CreateProjectPayload {
+  clientId?: string;
+  clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  projectName: string;
+  projectType: ProjectType;
+  totalValue: number;
+  modelCost?: number;
+  totalDeliverables: number;
+  editorId: string;
+  deadline?: string;
+  notes?: string;
+}
 
 export const createProject = (p: CreateProjectPayload) =>
   apiFetch<Project>("/projects", { method: "POST", body: JSON.stringify(p) });
@@ -124,10 +201,18 @@ export const createProject = (p: CreateProjectPayload) =>
 export const updateProjectStatus = (id: string, status: Project["status"], completedDeliverables?: number) =>
   apiFetch<Project>(`/projects/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, completedDeliverables }) });
 
-export const fetchEditorProfile = (id: string) => apiFetch<EditorProfile>(`/editors/${id}/profile`);
+// ─── References ───────────────────────────────────────────────────────────────
 
-export const fetchProjectVideos = (projectId: string) =>
-  apiFetch<VideoSubmission[]>(`/projects/${projectId}/videos`);
+export const fetchProjectReferences = (projectId: string) =>
+  apiFetch<ProjectReference[]>(`/projects/${projectId}/references`);
+
+export const addReference = (projectId: string, body: { title: string; url?: string; note: string }) =>
+  apiFetch<ProjectReference>(`/projects/${projectId}/references`, { method: "POST", body: JSON.stringify(body) });
+
+export const deleteReference = (id: string) =>
+  apiFetch<{ success: boolean }>(`/references/${id}`, { method: "DELETE" });
+
+// ─── Videos ───────────────────────────────────────────────────────────────────
 
 export const fetchEditorVideos = (editorId: string) =>
   apiFetch<VideoSubmission[]>(`/videos/editor/${editorId}`);
@@ -139,6 +224,8 @@ export const submitVideo = (projectId: string, body: { editorId: string; fileNam
 
 export const reviewVideo = (videoId: string, action: "approve" | "reject", note?: string) =>
   apiFetch<VideoSubmission>(`/videos/${videoId}/review`, { method: "PATCH", body: JSON.stringify({ action, note }) });
+
+// ─── Notifications ────────────────────────────────────────────────────────────
 
 export const fetchNotifications = (userId: string) =>
   apiFetch<AppNotification[]>(`/notifications/${userId}`);

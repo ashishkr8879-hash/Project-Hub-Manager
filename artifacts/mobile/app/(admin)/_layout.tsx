@@ -27,6 +27,10 @@ function NativeAdminTabLayout() {
         <Icon sf={{ default: "bell", selected: "bell.fill" }} />
         <Label>Inbox</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
+        <Label>Profile</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -86,6 +90,12 @@ function ClassicAdminTabLayout() {
         tabBarIcon: ({ color }) => isIOS
           ? <SymbolView name="bell" tintColor={color} size={24} />
           : <Feather name="bell" size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="profile" options={{
+        title: "Admin Profile",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="person.circle" tintColor={color} size={24} />
+          : <Feather name="user-circle" size={22} color={color} />,
       }} />
     </Tabs>
   );

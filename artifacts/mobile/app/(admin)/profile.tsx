@@ -137,18 +137,18 @@ export default function AdminProfileScreen() {
                 <View style={[styles.revenueRow, { marginHorizontal: 16, marginTop: 16 }]}>
                   <View style={[styles.revCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Text style={[styles.revLabel, { color: colors.mutedForeground }]}>Total Revenue</Text>
-                    <Text style={[styles.revValue, { color: colors.success }]}>${profile.stats.totalRevenue.toLocaleString()}</Text>
+                    <Text style={[styles.revValue, { color: colors.success }]}>₹{profile.stats.totalRevenue.toLocaleString()}</Text>
                   </View>
                   <View style={[styles.revCard, { backgroundColor: "#fee2e2", borderColor: "#fecaca" }]}>
                     <Text style={[styles.revLabel, { color: "#92400e" }]}>Model Costs</Text>
-                    <Text style={[styles.revValue, { color: colors.destructive }]}>-${profile.stats.totalModelCost.toLocaleString()}</Text>
+                    <Text style={[styles.revValue, { color: colors.destructive }]}>-₹{profile.stats.totalModelCost.toLocaleString()}</Text>
                   </View>
                 </View>
                 <View style={[styles.netCard, { marginHorizontal: 16, marginTop: 10, backgroundColor: "#dcfce7", borderColor: "#bbf7d0" }]}>
                   <Feather name="trending-up" size={20} color="#166534" />
                   <View>
                     <Text style={[styles.netLabel, { color: "#166534" }]}>Net Revenue (After Model Cost)</Text>
-                    <Text style={[styles.netValue, { color: "#15803d" }]}>${profile.stats.netRevenue.toLocaleString()}</Text>
+                    <Text style={[styles.netValue, { color: "#15803d" }]}>₹{profile.stats.netRevenue.toLocaleString()}</Text>
                   </View>
                 </View>
 

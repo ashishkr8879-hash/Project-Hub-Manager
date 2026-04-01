@@ -235,23 +235,23 @@ function ProjectDetailModal({
                   <View style={[styles.ugcPricingBox, { backgroundColor: "#fef9c3", borderColor: "#fde047" }]}>
                     <View style={styles.ugcPricingRow}>
                       <Text style={[styles.ugcPricingLabel, { color: "#92400e" }]}>Total Value</Text>
-                      <Text style={[styles.ugcPricingValue, { color: colors.foreground }]}>${project.totalValue.toLocaleString()}</Text>
+                      <Text style={[styles.ugcPricingValue, { color: colors.foreground }]}>₹{project.totalValue.toLocaleString()}</Text>
                     </View>
                     <View style={styles.ugcPricingRow}>
                       <Text style={[styles.ugcPricingLabel, { color: "#b91c1c" }]}>– Model Cost</Text>
-                      <Text style={[styles.ugcPricingValue, { color: "#b91c1c" }]}>–${project.modelCost.toLocaleString()}</Text>
+                      <Text style={[styles.ugcPricingValue, { color: "#b91c1c" }]}>–₹{project.modelCost.toLocaleString()}</Text>
                     </View>
                     <View style={[styles.ugcPricingDivider, { backgroundColor: "#fde047" }]} />
                     <View style={styles.ugcPricingRow}>
                       <Text style={[styles.ugcPricingLabel, { color: "#166534", fontFamily: "Inter_700Bold" }]}>Net Editor Payout</Text>
-                      <Text style={[styles.ugcNetValue, { color: "#15803d" }]}>${netValue.toLocaleString()}</Text>
+                      <Text style={[styles.ugcNetValue, { color: "#15803d" }]}>₹{netValue.toLocaleString()}</Text>
                     </View>
                   </View>
                 ) : (
                   <View style={[styles.simpleValueBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Feather name="dollar-sign" size={16} color={colors.success} />
                     <Text style={[styles.simpleValueText, { color: colors.foreground }]}>
-                      Project Value: <Text style={{ color: colors.success, fontFamily: "Inter_700Bold" }}>${project.totalValue.toLocaleString()}</Text>
+                      Project Value: <Text style={{ color: colors.success, fontFamily: "Inter_700Bold" }}>₹{project.totalValue.toLocaleString()}</Text>
                     </Text>
                   </View>
                 )}

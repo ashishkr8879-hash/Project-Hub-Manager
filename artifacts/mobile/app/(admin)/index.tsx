@@ -67,7 +67,7 @@ export default function AdminDashboard() {
           </View>
           <View style={styles.statsRow}>
             <StatCard label="Active"          value={String(stats?.activeProjects ?? 0)}  icon="activity"     color={colors.warning} />
-            <StatCard label="Today's Revenue" value={`$${(stats?.todayRevenue ?? 0).toLocaleString()}`} icon="trending-up" color={colors.success} />
+            <StatCard label="Today's Revenue" value={`₹${(stats?.todayRevenue ?? 0).toLocaleString()}`} icon="trending-up" color={colors.success} />
           </View>
           {(stats?.pendingReviews ?? 0) > 0 && (
             <TouchableOpacity

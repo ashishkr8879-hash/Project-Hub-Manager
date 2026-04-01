@@ -71,19 +71,19 @@ export function ProjectCard({ project, onPress, showEditor = true }: Props) {
           <View style={styles.ugcPricing}>
             <View style={styles.footerItem}>
               <Feather name="dollar-sign" size={13} color={colors.success} />
-              <Text style={[styles.footerText, { color: colors.foreground }]}>${netValue.toLocaleString()}</Text>
+              <Text style={[styles.footerText, { color: colors.foreground }]}>₹{netValue.toLocaleString()}</Text>
               <Text style={[styles.ugcSub, { color: colors.mutedForeground }]}>net</Text>
             </View>
             <View style={[styles.modelCostTag, { backgroundColor: "#fee2e2" }]}>
               <Feather name="minus" size={11} color="#b91c1c" />
-              <Text style={[styles.modelCostText, { color: "#b91c1c" }]}>${project.modelCost.toLocaleString()} model</Text>
+              <Text style={[styles.modelCostText, { color: "#b91c1c" }]}>₹{project.modelCost.toLocaleString()} model</Text>
             </View>
           </View>
         ) : (
           <View style={styles.footerItem}>
             <Feather name="dollar-sign" size={14} color={colors.success} />
             <Text style={[styles.footerText, { color: colors.foreground }]}>
-              ${project.totalValue.toLocaleString()}
+              ₹{project.totalValue.toLocaleString()}
             </Text>
           </View>
         )}

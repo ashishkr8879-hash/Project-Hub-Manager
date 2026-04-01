@@ -192,7 +192,7 @@ export default function CreateProjectScreen() {
 
       <View style={styles.row}>
         <View style={styles.halfField}>
-          <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Total Value ($) *</Text>
+          <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Total Value (₹) *</Text>
           <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
             value={totalValue} onChangeText={setTotalValue} placeholder="5000" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
         </View>
@@ -206,7 +206,7 @@ export default function CreateProjectScreen() {
       {isUGC && (
         <>
           <View style={styles.field}>
-            <Text style={[styles.fieldLabel, { color: "#b45309" }]}>Model Cost ($) * <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular" }}>(will be deducted)</Text></Text>
+            <Text style={[styles.fieldLabel, { color: "#b45309" }]}>Model Cost (₹) * <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular" }}>(will be deducted)</Text></Text>
             <TextInput style={[styles.input, { backgroundColor: "#fef9c3", borderColor: "#fde047", color: colors.foreground }]}
               value={modelCost} onChangeText={setModelCost} placeholder="e.g. 2500" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
           </View>
@@ -214,8 +214,8 @@ export default function CreateProjectScreen() {
             <View style={[styles.payoutBox, { backgroundColor: "#dcfce7", borderColor: "#bbf7d0" }]}>
               <Feather name="dollar-sign" size={16} color="#166534" />
               <Text style={[styles.payoutText, { color: "#166534" }]}>
-                Net Editor Payout: <Text style={styles.payoutValue}>${netPayout.toLocaleString()}</Text>
-                <Text style={[styles.payoutSub, { color: "#15803d" }]}> (${tv.toLocaleString()} – ${mc.toLocaleString()} model)</Text>
+                Net Editor Payout: <Text style={styles.payoutValue}>₹{netPayout.toLocaleString()}</Text>
+                <Text style={[styles.payoutSub, { color: "#15803d" }]}> (₹{tv.toLocaleString()} – ₹{mc.toLocaleString()} model)</Text>
               </Text>
             </View>
           )}

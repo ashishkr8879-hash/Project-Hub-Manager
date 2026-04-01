@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ProjectCard } from "@/components/ProjectCard";
 import { useColors } from "@/hooks/useColors";
+import { ChatModal } from "@/components/ChatModal";
 import {
   fetchProjects,
   fetchProjectReferences,
@@ -138,6 +139,7 @@ function ProjectDetailModal({
 }) {
   const queryClient = useQueryClient();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const [chatOpen, setChatOpen] = useState(false);
   const [showAddRef, setShowAddRef] = useState(false);
   const [refTitle, setRefTitle] = useState("");
   const [refUrl, setRefUrl] = useState("");
@@ -202,9 +204,17 @@ function ProjectDetailModal({
                 </View>
                 <Text style={[styles.modalClientName, { color: colors.mutedForeground }]}>{project.clientName}</Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.muted }]}>
-                <Feather name="x" size={18} color={colors.foreground} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => setChatOpen(true)}
+                  style={[styles.closeBtn, { backgroundColor: project.revisionRequested ? "#fef3c7" : `${colors.adminPrimary}15` }]}
+                >
+                  <Feather name="message-circle" size={18} color={project.revisionRequested ? "#b45309" : colors.adminPrimary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.muted }]}>
+                  <Feather name="x" size={18} color={colors.foreground} />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -359,6 +369,14 @@ function ProjectDetailModal({
           />
         </View>
       </View>
+      <ChatModal
+        visible={chatOpen}
+        onClose={() => setChatOpen(false)}
+        project={project}
+        currentUserId="admin"
+        currentUserName="Divyashakti Admin"
+        role="admin"
+      />
     </Modal>
   );
 }

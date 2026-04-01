@@ -19,6 +19,10 @@ function NativeAdminTabLayout() {
         <Icon sf={{ default: "folder", selected: "folder.fill" }} />
         <Label>Projects</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="clients">
+        <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
+        <Label>Clients</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="create">
         <Icon sf={{ default: "plus.circle", selected: "plus.circle.fill" }} />
         <Label>Create</Label>
@@ -78,6 +82,12 @@ function ClassicAdminTabLayout() {
         tabBarIcon: ({ color }) => isIOS
           ? <SymbolView name="folder" tintColor={color} size={24} />
           : <Feather name="folder" size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="clients" options={{
+        title: "Clients",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="person.2" tintColor={color} size={24} />
+          : <Feather name="users" size={22} color={color} />,
       }} />
       <Tabs.Screen name="create" options={{
         title: "New Project",

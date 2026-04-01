@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ChatModal } from "@/components/ChatModal";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import {
@@ -39,11 +40,13 @@ export default function WorkScreen() {
   const [tab, setTab] = useState<Tab>("active");
   const [updating, setUpdating] = useState<string | null>(null);
   const [uploadModal, setUploadModal] = useState<Project | null>(null);
+  const [chatProject, setChatProject] = useState<Project | null>(null);
 
   const { data: projects = [], isLoading, refetch } = useQuery({
     queryKey: ["editor-projects", editorId],
     queryFn: () => fetchEditorProjects(editorId),
     enabled: !!editorId,
+    refetchInterval: 20000,
   });
 
   const { data: allVideos = [], refetch: refetchVideos } = useQuery({
@@ -87,7 +90,12 @@ export default function WorkScreen() {
     const pendingReview = projectVideos.filter((v) => v.status === "pending_review").length;
 
     return (
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: isCompleted ? "#dcfce7" : colors.border, opacity: isCompleted ? 0.75 : 1 }]}>
+      <View style={[
+        styles.card,
+        { backgroundColor: colors.card, borderColor: isCompleted ? "#dcfce7" : item.revisionRequested ? "#fde047" : colors.border },
+        item.revisionRequested && { borderWidth: 2 },
+        { opacity: isCompleted ? 0.75 : 1 },
+      ]}>
         <View style={styles.cardHeader}>
           <View style={styles.cardTitles}>
             <Text style={[styles.projectName, { color: colors.foreground }]} numberOfLines={1}>{item.projectName}</Text>
@@ -95,6 +103,14 @@ export default function WorkScreen() {
           </View>
           <StatusBadge status={item.status} />
         </View>
+
+        {/* Revision/customise badge */}
+        {item.revisionRequested && (
+          <View style={[styles.revisionBanner, { backgroundColor: "#fef9c3", borderColor: "#fde047" }]}>
+            <Feather name="edit-2" size={13} color="#b45309" />
+            <Text style={[styles.revisionBannerText, { color: "#92400e" }]}>Admin requested customisation — check messages</Text>
+          </View>
+        )}
 
         {item.notes && (
           <View style={[styles.noteRow, { backgroundColor: colors.secondary }]}>
@@ -149,7 +165,31 @@ export default function WorkScreen() {
                 </TouchableOpacity>
               </>
             )}
+            {/* Chat / Customise button — always visible for active projects */}
+            <TouchableOpacity
+              onPress={() => setChatProject(item)}
+              style={[
+                styles.actionBtn,
+                { backgroundColor: item.revisionRequested ? "#fef3c7" : `${colors.editorPrimary}12`, borderColor: item.revisionRequested ? "#f59e0b" : `${colors.editorPrimary}30` },
+              ]}
+            >
+              <Feather name="message-circle" size={14} color={item.revisionRequested ? "#b45309" : colors.editorPrimary} />
+              <Text style={[styles.actionText, { color: item.revisionRequested ? "#b45309" : colors.editorPrimary }]}>
+                {item.revisionRequested ? "Customise!" : "Chat"}
+              </Text>
+            </TouchableOpacity>
           </View>
+        )}
+
+        {/* Chat button for completed projects too */}
+        {isCompleted && (
+          <TouchableOpacity
+            onPress={() => setChatProject(item)}
+            style={[styles.actionBtn, { backgroundColor: `${colors.editorPrimary}10`, borderColor: `${colors.editorPrimary}20`, alignSelf: "flex-start" }]}
+          >
+            <Feather name="message-circle" size={13} color={colors.editorPrimary} />
+            <Text style={[styles.actionText, { color: colors.editorPrimary, fontSize: 12 }]}>Chat</Text>
+          </TouchableOpacity>
         )}
       </View>
     );
@@ -180,13 +220,22 @@ export default function WorkScreen() {
             {new Date(item.reviewedAt ?? item.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
           </Text>
         </View>
-        {project && project.status === "in_progress" && (
-          <TouchableOpacity onPress={() => setUploadModal(project)}
-            style={[styles.actionBtn, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30`, alignSelf: "flex-start" }]}>
-            <Feather name="upload" size={14} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>Re-upload</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.actions}>
+          {project && project.status === "in_progress" && (
+            <TouchableOpacity onPress={() => setUploadModal(project)}
+              style={[styles.actionBtn, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30`, flex: 1 }]}>
+              <Feather name="upload" size={14} color={colors.primary} />
+              <Text style={[styles.actionText, { color: colors.primary }]}>Re-upload</Text>
+            </TouchableOpacity>
+          )}
+          {project && (
+            <TouchableOpacity onPress={() => setChatProject(project)}
+              style={[styles.actionBtn, { backgroundColor: `${colors.editorPrimary}12`, borderColor: `${colors.editorPrimary}25` }]}>
+              <Feather name="message-circle" size={14} color={colors.editorPrimary} />
+              <Text style={[styles.actionText, { color: colors.editorPrimary }]}>Chat</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   }
@@ -263,6 +312,17 @@ export default function WorkScreen() {
           }}
         />
       )}
+
+      {chatProject && currentUser && (
+        <ChatModal
+          visible={!!chatProject}
+          onClose={() => setChatProject(null)}
+          project={chatProject}
+          currentUserId={editorId}
+          currentUserName={currentUser.name}
+          role="editor"
+        />
+      )}
     </View>
   );
 }
@@ -282,6 +342,8 @@ function UploadModal({
   const [deliverableIndex, setDeliverableIndex] = useState("1");
   const [loading, setLoading] = useState(false);
 
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+
   async function handleSubmit() {
     if (!fileName.trim()) { Alert.alert("Error", "Please enter the file name"); return; }
     setLoading(true);
@@ -296,8 +358,6 @@ function UploadModal({
       Alert.alert("Error", e instanceof Error ? e.message : "Upload failed");
     } finally { setLoading(false); }
   }
-
-  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
@@ -353,6 +413,8 @@ const styles = StyleSheet.create({
   cardTitles: { flex: 1, gap: 2 },
   projectName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   clientName: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  revisionBanner: { flexDirection: "row", alignItems: "center", gap: 6, padding: 8, borderRadius: 8, borderWidth: 1 },
+  revisionBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_500Medium" },
   noteRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, padding: 10, borderRadius: 8 },
   noteText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular" },
   progressRow: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -361,7 +423,7 @@ const styles = StyleSheet.create({
   progressCount: { fontSize: 12, fontFamily: "Inter_500Medium", minWidth: 32, textAlign: "right" },
   metaRow: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
   metaText: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  actions: { flexDirection: "row", gap: 8 },
+  actions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 10, borderRadius: 10, borderWidth: 1, gap: 6 },
   actionText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   rejBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, alignSelf: "flex-start" },

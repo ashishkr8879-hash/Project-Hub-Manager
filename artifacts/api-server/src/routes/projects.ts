@@ -175,6 +175,14 @@ router.get("/admin/profile", (_req, res) => {
 // ─── Clients ──────────────────────────────────────────────────────────────────
 
 router.get("/clients", (_req, res) => res.json(clients));
+
+router.get("/clients/:id/projects", (req, res) => {
+  const client = clients.find((c) => c.id === req.params.id);
+  if (!client) { res.status(404).json({ error: "Client not found" }); return; }
+  const clientProjects = projects.filter((p) => p.clientId === req.params.id || p.clientName === client.name);
+  const totalValue = clientProjects.reduce((s, p) => s + p.totalValue, 0);
+  res.json({ client, projects: clientProjects, totalValue });
+});
 router.post("/clients", (req, res) => {
   const { name, phone, email, businessType, city } = req.body;
   if (!name || !phone) { res.status(400).json({ error: "Name and phone required" }); return; }
@@ -274,6 +282,26 @@ router.patch("/projects/:id/revision", (req, res) => {
     pushNotif({ userId: project.editorId, type: "revision_requested", title: "Customisation Required", message: `Admin has requested customisation on "${project.projectName}"`, projectId: project.id });
   }
   res.json(project);
+});
+
+// ─── Calendar ─────────────────────────────────────────────────────────────────
+
+router.get("/projects/calendar", (req, res) => {
+  const month = req.query.month as string | undefined;
+  const editorId = req.query.editorId as string | undefined;
+
+  const source = editorId ? projects.filter((p) => p.editorId === editorId) : projects;
+  const byDay: Record<string, { count: number; projects: { id: string; projectName: string; clientName: string; status: string; projectType: string }[] }> = {};
+
+  source.forEach((p) => {
+    const date = p.createdAt.split("T")[0];
+    if (!month || date.startsWith(month)) {
+      if (!byDay[date]) byDay[date] = { count: 0, projects: [] };
+      byDay[date].count++;
+      byDay[date].projects.push({ id: p.id, projectName: p.projectName, clientName: p.clientName, status: p.status, projectType: p.projectType });
+    }
+  });
+  res.json(byDay);
 });
 
 // ─── References ───────────────────────────────────────────────────────────────

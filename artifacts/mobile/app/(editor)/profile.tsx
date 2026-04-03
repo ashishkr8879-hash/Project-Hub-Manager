@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,179 @@ import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { fetchEditorProfile, fetchEditors, fetchEditorAnalytics, Editor } from "@/hooks/useApi";
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+// ── Calendar helper ────────────────────────────────────────────────────────────
+function buildCalendarGrid(year: number, month: number) {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = Array(firstDay).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function toDateKey(year: number, month: number, day: number) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+// ── Project calendar for a specific editor ─────────────────────────────────────
+function MemberCalendar({
+  projectsByDate,
+  colors,
+}: {
+  projectsByDate: { date: string; projects: any[]; dayRevenue: number }[];
+  colors: ReturnType<typeof useColors>;
+}) {
+  const today = new Date();
+  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  const dateMap = useMemo(() => {
+    const m: Record<string, { count: number; projects: any[]; dayRevenue: number }> = {};
+    for (const entry of projectsByDate) {
+      m[entry.date] = { count: entry.projects.length, projects: entry.projects, dayRevenue: entry.dayRevenue };
+    }
+    return m;
+  }, [projectsByDate]);
+
+  const grid = useMemo(() => buildCalendarGrid(calYear, calMonth), [calYear, calMonth]);
+
+  const todayKey = toDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+  function prevMonth() {
+    setSelectedDay(null);
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+  }
+  function nextMonth() {
+    setSelectedDay(null);
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+  }
+
+  const selectedEntry = selectedDay ? dateMap[selectedDay] : null;
+
+  function dotColor(count: number) {
+    if (count >= 4) return colors.destructive;
+    if (count >= 2) return colors.primary;
+    return colors.success;
+  }
+
+  return (
+    <View style={[calStyles.wrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {/* Month navigation */}
+      <View style={calStyles.header}>
+        <TouchableOpacity onPress={prevMonth} style={calStyles.navBtn} activeOpacity={0.7}>
+          <Feather name="chevron-left" size={20} color={colors.foreground} />
+        </TouchableOpacity>
+        <Text style={[calStyles.monthLabel, { color: colors.foreground }]}>
+          {MONTH_NAMES[calMonth]} {calYear}
+        </Text>
+        <TouchableOpacity onPress={nextMonth} style={calStyles.navBtn} activeOpacity={0.7}>
+          <Feather name="chevron-right" size={20} color={colors.foreground} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Weekday header */}
+      <View style={calStyles.weekRow}>
+        {WEEKDAYS.map((d) => (
+          <Text key={d} style={[calStyles.weekDay, { color: colors.mutedForeground }]}>{d}</Text>
+        ))}
+      </View>
+
+      {/* Day cells */}
+      <View style={calStyles.grid}>
+        {grid.map((day, idx) => {
+          if (day === null) return <View key={`e-${idx}`} style={calStyles.cell} />;
+          const key = toDateKey(calYear, calMonth, day);
+          const entry = dateMap[key];
+          const count = entry?.count ?? 0;
+          const isToday = key === todayKey;
+          const isSelected = key === selectedDay;
+          return (
+            <TouchableOpacity
+              key={key}
+              style={[
+                calStyles.cell,
+                isSelected && { backgroundColor: colors.editorPrimary, borderRadius: 10 },
+                isToday && !isSelected && { borderWidth: 1.5, borderColor: colors.editorPrimary, borderRadius: 10 },
+              ]}
+              onPress={() => {
+                if (count > 0) {
+                  setSelectedDay(isSelected ? null : key);
+                  Haptics.selectionAsync();
+                }
+              }}
+              activeOpacity={count > 0 ? 0.7 : 1}
+            >
+              <Text style={[
+                calStyles.dayNum,
+                { color: isSelected ? "#fff" : isToday ? colors.editorPrimary : colors.foreground },
+              ]}>
+                {day}
+              </Text>
+              {count > 0 && (
+                <View style={[calStyles.dot, { backgroundColor: isSelected ? "#fff" : dotColor(count) }]}>
+                  <Text style={[calStyles.dotCount, { color: isSelected ? colors.editorPrimary : "#fff" }]}>
+                    {count}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Legend */}
+      <View style={calStyles.legend}>
+        <View style={calStyles.legendItem}>
+          <View style={[calStyles.legendDot, { backgroundColor: colors.success }]} />
+          <Text style={[calStyles.legendText, { color: colors.mutedForeground }]}>1 project</Text>
+        </View>
+        <View style={calStyles.legendItem}>
+          <View style={[calStyles.legendDot, { backgroundColor: colors.primary }]} />
+          <Text style={[calStyles.legendText, { color: colors.mutedForeground }]}>2–3 projects</Text>
+        </View>
+        <View style={calStyles.legendItem}>
+          <View style={[calStyles.legendDot, { backgroundColor: colors.destructive }]} />
+          <Text style={[calStyles.legendText, { color: colors.mutedForeground }]}>4+ projects</Text>
+        </View>
+      </View>
+
+      {/* Selected day detail */}
+      {selectedEntry && selectedDay && (
+        <View style={[calStyles.dayDetail, { borderTopColor: colors.border }]}>
+          <View style={calStyles.dayDetailHeader}>
+            <Text style={[calStyles.dayDetailDate, { color: colors.editorPrimary }]}>
+              {new Date(selectedDay + "T00:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            </Text>
+            <View style={[calStyles.dayRevBadge, { backgroundColor: `${colors.success}18` }]}>
+              <Text style={[calStyles.dayRevText, { color: colors.success }]}>₹{selectedEntry.dayRevenue.toLocaleString()}</Text>
+            </View>
+          </View>
+          <Text style={[calStyles.dayProjectCount, { color: colors.mutedForeground }]}>
+            {selectedEntry.count} project{selectedEntry.count > 1 ? "s" : ""} on this day
+          </Text>
+          {selectedEntry.projects.map((p: any) => (
+            <View key={p.id} style={[calStyles.dayProject, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[calStyles.dayProjectName, { color: colors.foreground }]} numberOfLines={1}>{p.projectName}</Text>
+                <Text style={[calStyles.dayProjectClient, { color: colors.mutedForeground }]} numberOfLines={1}>{p.clientName}</Text>
+                <Text style={[calStyles.dayProjectValue, { color: colors.success }]}>₹{p.totalValue.toLocaleString()}</Text>
+              </View>
+              <StatusBadge status={p.status} />
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ── Main screen ────────────────────────────────────────────────────────────────
 export default function EditorProfileScreen() {
   const colors = useColors();
   const { currentUser, setCurrentUser } = useApp();
@@ -88,9 +261,7 @@ export default function EditorProfileScreen() {
         onPress: async () => {
           const perm = await ImagePicker.requestCameraPermissionsAsync();
           if (!perm.granted) { Alert.alert("Permission denied", "Camera access is needed."); return; }
-          const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7,
-          });
+          const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
           if (!result.canceled && result.assets[0]) {
             const uri = result.assets[0].uri;
             setProfileImage(uri);
@@ -104,9 +275,7 @@ export default function EditorProfileScreen() {
         onPress: async () => {
           const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (!perm.granted) { Alert.alert("Permission denied", "Photo library access is needed."); return; }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7,
-          });
+          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
           if (!result.canceled && result.assets[0]) {
             const uri = result.assets[0].uri;
             setProfileImage(uri);
@@ -117,10 +286,7 @@ export default function EditorProfileScreen() {
       },
       {
         text: "Remove Photo", style: "destructive",
-        onPress: async () => {
-          setProfileImage(null);
-          await AsyncStorage.removeItem(`profile_image_${editorId}`);
-        },
+        onPress: async () => { setProfileImage(null); await AsyncStorage.removeItem(`profile_image_${editorId}`); },
       },
       { text: "Cancel", style: "cancel" },
     ]);
@@ -188,14 +354,14 @@ export default function EditorProfileScreen() {
             {/* ── Stats ──────────────────────────────────────────────────── */}
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>My Statistics</Text>
             <View style={styles.statsGrid}>
-              <StatBox label="Total Projects"   value={String(profile.stats.totalProjects)}      color={colors.editorPrimary} colors={colors} />
-              <StatBox label="Completed"         value={String(profile.stats.completedProjects)}  color={colors.success}       colors={colors} />
-              <StatBox label="In Progress"       value={String(profile.stats.inProgressProjects)} color={colors.primary}       colors={colors} />
-              <StatBox label="Pending"           value={String(profile.stats.pendingProjects)}    color={colors.warning}       colors={colors} />
+              <StatBox label="Total Projects"   value={String(profile.stats.totalProjects)}       color={colors.editorPrimary} colors={colors} />
+              <StatBox label="Completed"         value={String(profile.stats.completedProjects)}   color={colors.success}       colors={colors} />
+              <StatBox label="In Progress"       value={String(profile.stats.inProgressProjects)}  color={colors.primary}       colors={colors} />
+              <StatBox label="Pending"           value={String(profile.stats.pendingProjects)}     color={colors.warning}       colors={colors} />
               <StatBox label="Videos Uploaded"   value={String(profile.stats.totalVideosUploaded)} color={colors.editorPrimary} colors={colors} />
-              <StatBox label="Approved"          value={String(profile.stats.approvedVideos)}     color={colors.success}       colors={colors} />
-              <StatBox label="Rejected"          value={String(profile.stats.rejectedVideos)}     color={colors.destructive}   colors={colors} />
-              <StatBox label="In Review"         value={String(profile.stats.pendingReviewVideos)} color={colors.warning}      colors={colors} />
+              <StatBox label="Approved"          value={String(profile.stats.approvedVideos)}      color={colors.success}       colors={colors} />
+              <StatBox label="Rejected"          value={String(profile.stats.rejectedVideos)}      color={colors.destructive}   colors={colors} />
+              <StatBox label="In Review"         value={String(profile.stats.pendingReviewVideos)} color={colors.warning}       colors={colors} />
             </View>
 
             {/* ── Earnings ───────────────────────────────────────────────── */}
@@ -222,9 +388,7 @@ export default function EditorProfileScreen() {
                       <Text style={[styles.projectRowClient, { color: colors.mutedForeground }]} numberOfLines={1}>{p.clientName}</Text>
                       <View style={styles.projectRowMeta}>
                         <Text style={[styles.projectRowValue, { color: colors.success }]}>₹{p.totalValue.toLocaleString()}</Text>
-                        <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>
-                          {p.completedDeliverables}/{p.totalDeliverables} deliverables
-                        </Text>
+                        <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>{p.completedDeliverables}/{p.totalDeliverables} deliverables</Text>
                       </View>
                     </View>
                     <StatusBadge status={p.status} />
@@ -247,7 +411,7 @@ export default function EditorProfileScreen() {
         {teammates.length > 0 && (
           <>
             <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: profile ? 0 : 20 }]}>Team Members</Text>
-            <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>Tap a member to view their profile</Text>
+            <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>Tap to view profile & project calendar</Text>
             {teammates.map((member) => {
               const memberInitials = member.name.split(" ").map((w: string) => w[0]).join("").toUpperCase();
               return (
@@ -307,6 +471,7 @@ export default function EditorProfileScreen() {
               <Feather name="x" size={22} color={colors.foreground} />
             </TouchableOpacity>
           </View>
+
           <ScrollView contentContainerStyle={styles.modalContent}>
             {memberProfileLoading ? (
               <ActivityIndicator color={colors.editorPrimary} style={{ marginTop: 60 }} />
@@ -334,16 +499,16 @@ export default function EditorProfileScreen() {
                 </View>
 
                 {/* Stats */}
-                <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 20 }]}>Statistics</Text>
+                <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4 }]}>Statistics</Text>
                 <View style={styles.statsGrid}>
-                  <StatBox label="Total Projects"   value={String((memberProfile as any).stats?.totalProjects ?? 0)}      color={colors.editorPrimary} colors={colors} />
-                  <StatBox label="Completed"         value={String((memberProfile as any).stats?.completedProjects ?? 0)}  color={colors.success}       colors={colors} />
-                  <StatBox label="In Progress"       value={String((memberProfile as any).stats?.inProgressProjects ?? 0)} color={colors.primary}       colors={colors} />
-                  <StatBox label="Pending"           value={String((memberProfile as any).stats?.pendingProjects ?? 0)}    color={colors.warning}       colors={colors} />
+                  <StatBox label="Total Projects"   value={String((memberProfile as any).stats?.totalProjects ?? 0)}       color={colors.editorPrimary} colors={colors} />
+                  <StatBox label="Completed"         value={String((memberProfile as any).stats?.completedProjects ?? 0)}   color={colors.success}       colors={colors} />
+                  <StatBox label="In Progress"       value={String((memberProfile as any).stats?.inProgressProjects ?? 0)}  color={colors.primary}       colors={colors} />
+                  <StatBox label="Pending"           value={String((memberProfile as any).stats?.pendingProjects ?? 0)}     color={colors.warning}       colors={colors} />
                   <StatBox label="Videos Uploaded"   value={String((memberProfile as any).stats?.totalVideosUploaded ?? 0)} color={colors.editorPrimary} colors={colors} />
-                  <StatBox label="Approved"          value={String((memberProfile as any).stats?.approvedVideos ?? 0)}     color={colors.success}       colors={colors} />
-                  <StatBox label="Rejected"          value={String((memberProfile as any).stats?.rejectedVideos ?? 0)}     color={colors.destructive}   colors={colors} />
-                  <StatBox label="In Review"         value={String((memberProfile as any).stats?.pendingReviewVideos ?? 0)} color={colors.warning}      colors={colors} />
+                  <StatBox label="Approved"          value={String((memberProfile as any).stats?.approvedVideos ?? 0)}      color={colors.success}       colors={colors} />
+                  <StatBox label="Rejected"          value={String((memberProfile as any).stats?.rejectedVideos ?? 0)}      color={colors.destructive}   colors={colors} />
+                  <StatBox label="In Review"         value={String((memberProfile as any).stats?.pendingReviewVideos ?? 0)} color={colors.warning}       colors={colors} />
                 </View>
 
                 {/* Earnings */}
@@ -359,20 +524,28 @@ export default function EditorProfileScreen() {
                   </View>
                 </View>
 
+                {/* Project Calendar */}
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Project Calendar</Text>
+                <Text style={[styles.sectionSub, { color: colors.mutedForeground, marginTop: -8 }]}>
+                  Tap a highlighted date to see projects
+                </Text>
+                <MemberCalendar
+                  projectsByDate={(memberProfile as any).projectsByDate ?? []}
+                  colors={colors}
+                />
+
                 {/* Recent Projects */}
-                {(memberProfile as any).recentProjects?.length > 0 && (
+                {(memberProfile as any).allProjects?.length > 0 && (
                   <>
-                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Projects</Text>
-                    {(memberProfile as any).recentProjects.map((p: any) => (
+                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>All Projects</Text>
+                    {((memberProfile as any).allProjects as any[]).slice(0, 8).map((p: any) => (
                       <View key={p.id} style={[styles.projectRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
                         <View style={styles.projectRowLeft}>
                           <Text style={[styles.projectRowName, { color: colors.foreground }]} numberOfLines={1}>{p.projectName}</Text>
                           <Text style={[styles.projectRowClient, { color: colors.mutedForeground }]} numberOfLines={1}>{p.clientName}</Text>
                           <View style={styles.projectRowMeta}>
                             <Text style={[styles.projectRowValue, { color: colors.success }]}>₹{p.totalValue.toLocaleString()}</Text>
-                            <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>
-                              {p.completedDeliverables}/{p.totalDeliverables} deliverables
-                            </Text>
+                            <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>{p.completedDeliverables}/{p.totalDeliverables} deliverables</Text>
                           </View>
                         </View>
                         <StatusBadge status={p.status} />
@@ -394,6 +567,7 @@ export default function EditorProfileScreen() {
   );
 }
 
+// ── Stat box ───────────────────────────────────────────────────────────────────
 function StatBox({ label, value, color, colors }: { label: string; value: string; color: string; colors: ReturnType<typeof useColors> }) {
   return (
     <View style={[styles.statBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -403,6 +577,7 @@ function StatBox({ label, value, color, colors }: { label: string; value: string
   );
 }
 
+// ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, gap: 16 },
@@ -423,7 +598,7 @@ const styles = StyleSheet.create({
   metaItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   metaItemText: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.85)" },
   sectionTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  sectionSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: -8 },
+  sectionSub: { fontSize: 13, fontFamily: "Inter_400Regular" },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   statBox: { width: "47%", borderRadius: 14, borderWidth: 1, padding: 14, gap: 4, alignItems: "flex-start" },
   statValue: { fontSize: 24, fontFamily: "Inter_700Bold" },
@@ -460,4 +635,32 @@ const styles = StyleSheet.create({
   memberHeroName: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
   memberHeroSpec: { fontSize: 13, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.85)" },
   heroMetaRow: { marginTop: 8, gap: 4, alignItems: "center" },
+});
+
+const calStyles = StyleSheet.create({
+  wrapper: { borderRadius: 18, borderWidth: 1, padding: 16, gap: 12 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  navBtn: { padding: 6 },
+  monthLabel: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  weekRow: { flexDirection: "row" },
+  weekDay: { flex: 1, textAlign: "center", fontSize: 11, fontFamily: "Inter_500Medium" },
+  grid: { flexDirection: "row", flexWrap: "wrap" },
+  cell: { width: "14.28%", aspectRatio: 1, alignItems: "center", justifyContent: "center", gap: 2 },
+  dayNum: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  dot: { width: 18, height: 12, borderRadius: 6, alignItems: "center", justifyContent: "center" },
+  dotCount: { fontSize: 9, fontFamily: "Inter_700Bold" },
+  legend: { flexDirection: "row", justifyContent: "center", gap: 14, marginTop: 4 },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  dayDetail: { borderTopWidth: 1, paddingTop: 14, gap: 10, marginTop: 4 },
+  dayDetailHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  dayDetailDate: { fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 },
+  dayRevBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  dayRevText: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  dayProjectCount: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: -4 },
+  dayProject: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 12, borderWidth: 1, padding: 12, gap: 8 },
+  dayProjectName: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  dayProjectClient: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  dayProjectValue: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 2 },
 });

@@ -31,6 +31,10 @@ function NativeAdminTabLayout() {
         <Icon sf={{ default: "bell", selected: "bell.fill" }} />
         <Label>Inbox</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="editorlist">
+        <Icon sf={{ default: "person.badge.clock", selected: "person.badge.clock.fill" }} />
+        <Label>Editors</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
         <Label>Profile</Label>
@@ -100,6 +104,12 @@ function ClassicAdminTabLayout() {
         tabBarIcon: ({ color }) => isIOS
           ? <SymbolView name="bell" tintColor={color} size={24} />
           : <Feather name="bell" size={22} color={color} />,
+      }} />
+      <Tabs.Screen name="editorlist" options={{
+        title: "Editors",
+        tabBarIcon: ({ color }) => isIOS
+          ? <SymbolView name="person.3" tintColor={color} size={24} />
+          : <Feather name="user-check" size={22} color={color} />,
       }} />
       <Tabs.Screen name="profile" options={{
         title: "Admin Profile",

@@ -7,7 +7,7 @@ const router: IRouter = Router();
 interface Editor {
   id: string; name: string; email: string; password: string; username: string;
   phone: string; specialization: string; joinedAt: string;
-  bankAccount?: string; location?: string;
+  bankAccount?: string; location?: string; monthlySalary: number;
 }
 
 interface Client {
@@ -76,10 +76,10 @@ const ADMIN = {
 
 let editorIdCounter = 5;
 const editors: Editor[] = [
-  { id: "e1", name: "Alice Johnson", username: "alice", email: "alice@divayshakati.com", password: "alice123", phone: "+91 98100 11111", specialization: "Video Editor",       joinedAt: "2023-01-15", bankAccount: "SBI 1234567890", location: "Mumbai" },
-  { id: "e2", name: "Bob Martinez",  username: "bob",   email: "bob@divayshakati.com",   password: "bob123",   phone: "+91 98100 22222", specialization: "Graphic Designer",   joinedAt: "2023-03-20", bankAccount: "HDFC 9876543210", location: "Delhi" },
-  { id: "e3", name: "Clara Lee",     username: "clara", email: "clara@divayshakati.com", password: "clara123", phone: "+91 98100 33333", specialization: "Social Media Manager",joinedAt: "2023-06-01", bankAccount: "ICICI 5555666677", location: "Bangalore" },
-  { id: "e4", name: "David Kim",     username: "david", email: "david@divayshakati.com", password: "david123", phone: "+91 98100 44444", specialization: "Website Development", joinedAt: "2024-01-10", bankAccount: "Axis 3344556677", location: "Hyderabad" },
+  { id: "e1", name: "Alice Johnson", username: "alice", email: "alice@divayshakati.com", password: "alice123", phone: "+91 98100 11111", specialization: "Video Editor",        joinedAt: "2023-01-15", bankAccount: "SBI 1234567890",   location: "Mumbai",    monthlySalary: 25000 },
+  { id: "e2", name: "Bob Martinez",  username: "bob",   email: "bob@divayshakati.com",   password: "bob123",   phone: "+91 98100 22222", specialization: "Graphic Designer",    joinedAt: "2023-03-20", bankAccount: "HDFC 9876543210",  location: "Delhi",     monthlySalary: 22000 },
+  { id: "e3", name: "Clara Lee",     username: "clara", email: "clara@divayshakati.com", password: "clara123", phone: "+91 98100 33333", specialization: "Social Media Manager", joinedAt: "2023-06-01", bankAccount: "ICICI 5555666677", location: "Bangalore", monthlySalary: 28000 },
+  { id: "e4", name: "David Kim",     username: "david", email: "david@divayshakati.com", password: "david123", phone: "+91 98100 44444", specialization: "Website Development",  joinedAt: "2024-01-10", bankAccount: "Axis 3344556677",  location: "Hyderabad", monthlySalary: 30000 },
 ];
 
 const clients: Client[] = [
@@ -264,8 +264,27 @@ router.get("/editors/:editorId/profile", (req, res) => {
   if (!editor) { res.status(404).json({ error: "Editor not found" }); return; }
   const editorProjects = projects.filter((p) => p.editorId === editor.id);
   const editorVideos   = videoSubmissions.filter((v) => v.editorId === editor.id);
+  const totalRevenue = editorProjects.reduce((s, p) => s + (p.totalValue - p.modelCost), 0);
+  const companyProfit = totalRevenue - editor.monthlySalary;
+  // Group projects by date (newest first)
+  const grouped: Record<string, typeof editorProjects> = {};
+  for (const p of editorProjects) {
+    const date = p.createdAt.split("T")[0];
+    if (!grouped[date]) grouped[date] = [];
+    grouped[date].push(p);
+  }
+  const projectsByDate = Object.entries(grouped)
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([date, projs]) => ({
+      date,
+      projects: projs.map(p => ({ ...p, companyRevenue: p.totalValue - p.modelCost })),
+      dayRevenue: projs.reduce((s, p) => s + (p.totalValue - p.modelCost), 0),
+    }));
   res.json({
-    id: editor.id, name: editor.name, email: editor.email, phone: editor.phone, specialization: editor.specialization, joinedAt: editor.joinedAt,
+    id: editor.id, name: editor.name, email: editor.email, phone: editor.phone,
+    specialization: editor.specialization, joinedAt: editor.joinedAt,
+    bankAccount: editor.bankAccount, location: editor.location,
+    monthlySalary: editor.monthlySalary,
     stats: {
       totalProjects: editorProjects.length,
       completedProjects:   editorProjects.filter((p) => p.status === "completed").length,
@@ -276,9 +295,12 @@ router.get("/editors/:editorId/profile", (req, res) => {
       approvedVideos:      editorVideos.filter((v) => v.status === "approved").length,
       rejectedVideos:      editorVideos.filter((v) => v.status === "rejected").length,
       pendingReviewVideos: editorVideos.filter((v) => v.status === "pending_review").length,
-      totalEarnings:       editorProjects.filter((p) => p.status === "completed").reduce((s, p) => s + (p.totalValue - p.modelCost), 0),
+      totalRevenue, companyProfit,
     },
-    recentProjects: editorProjects.slice(-5).reverse(),
+    allProjects: [...editorProjects]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map(p => ({ ...p, companyRevenue: p.totalValue - p.modelCost })),
+    projectsByDate,
   });
 });
 

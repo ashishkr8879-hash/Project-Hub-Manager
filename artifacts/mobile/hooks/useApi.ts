@@ -96,6 +96,22 @@ export interface EditorProfile {
   recentProjects: Project[];
 }
 
+export type ProjectWithRevenue = Project & { companyRevenue: number };
+
+export interface EditorAnalytics {
+  id: string; name: string; email: string; phone: string;
+  specialization: string; joinedAt: string;
+  bankAccount?: string; location?: string; monthlySalary: number;
+  stats: {
+    totalProjects: number; completedProjects: number; inProgressProjects: number;
+    pendingProjects: number; customisationProjects: number;
+    totalVideosUploaded: number; approvedVideos: number; rejectedVideos: number;
+    pendingReviewVideos: number; totalRevenue: number; companyProfit: number;
+  };
+  allProjects: ProjectWithRevenue[];
+  projectsByDate: { date: string; projects: ProjectWithRevenue[]; dayRevenue: number }[];
+}
+
 export interface LoginPayload { username: string; password: string; }
 export interface LoginResponse { id: string; name: string; role: "admin" | "editor"; editorId?: string; }
 
@@ -137,6 +153,7 @@ export const fetchClientProjects = (clientId: string) =>
 export const fetchEditors = () => apiFetch<Editor[]>("/editors");
 export const fetchEditorFull = (id: string) => apiFetch<EditorFull>(`/editors/${id}/full`);
 export const fetchEditorProfile = (id: string) => apiFetch<EditorProfile>(`/editors/${id}/profile`);
+export const fetchEditorAnalytics = (id: string) => apiFetch<EditorAnalytics>(`/editors/${id}/profile`);
 
 export interface CreateEditorPayload {
   name: string; username: string; password: string; email?: string;

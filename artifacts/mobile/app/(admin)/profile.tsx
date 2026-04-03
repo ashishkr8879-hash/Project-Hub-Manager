@@ -1,6 +1,5 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -67,7 +66,7 @@ export default function AdminProfileScreen() {
       { text: "Cancel", style: "cancel" },
       {
         text: "Sign Out", style: "destructive",
-        onPress: () => { setCurrentUser(null); router.replace("/login"); },
+        onPress: () => { setCurrentUser(null); },
       },
     ]);
   }

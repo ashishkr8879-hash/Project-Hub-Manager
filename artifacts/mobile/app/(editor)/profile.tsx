@@ -1,5 +1,4 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
@@ -38,7 +37,7 @@ export default function EditorProfileScreen() {
   function handleLogout() {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: () => { setCurrentUser(null); router.replace("/login"); } },
+      { text: "Sign Out", style: "destructive", onPress: () => { setCurrentUser(null); } },
     ]);
   }
 

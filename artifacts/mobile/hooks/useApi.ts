@@ -24,6 +24,7 @@ export interface Project {
   totalDeliverables: number; editorId: string; editorName: string; editorPhone?: string;
   status: "pending" | "in_progress" | "completed";
   completedDeliverables: number;
+  paidAmount: number;
   createdAt: string; deadline?: string; notes?: string; script?: string;
   revisionRequested: boolean;
 }
@@ -163,6 +164,9 @@ export interface CreateProjectPayload {
 
 export const createProject = (p: CreateProjectPayload) =>
   apiFetch<Project>("/projects", { method: "POST", body: JSON.stringify(p) });
+
+export const updateProjectPayment = (id: string, paidAmount: number) =>
+  apiFetch<Project>(`/projects/${id}/payment`, { method: "PATCH", body: JSON.stringify({ paidAmount }) });
 
 export const updateProjectStatus = (id: string, status: Project["status"], completedDeliverables?: number) =>
   apiFetch<Project>(`/projects/${id}/status`, { method: "PATCH", body: JSON.stringify({ status, completedDeliverables }) });

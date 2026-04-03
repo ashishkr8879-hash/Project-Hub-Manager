@@ -28,11 +28,13 @@ import {
 
 type Tab = "notifications" | "pending_reviews";
 
-const ICON_MAP = {
-  project_assigned: { icon: "folder-plus" as const, bg: "#e8edf8", color: "#3b5bdb" },
-  video_submitted:  { icon: "upload" as const,       bg: "#e8f5e9", color: "#22c55e" },
-  video_approved:   { icon: "check-circle" as const, bg: "#e8f5e9", color: "#22c55e" },
-  video_rejected:   { icon: "x-circle" as const,     bg: "#fee2e2", color: "#ef4444" },
+const ICON_MAP: Record<string, { icon: "folder-plus"|"upload"|"check-circle"|"x-circle"|"message-circle"|"edit-2"; bg: string; color: string }> = {
+  project_assigned:   { icon: "folder-plus",   bg: "#e8edf8", color: "#3b5bdb" },
+  video_submitted:    { icon: "upload",         bg: "#e8f5e9", color: "#22c55e" },
+  video_approved:     { icon: "check-circle",   bg: "#e8f5e9", color: "#22c55e" },
+  video_rejected:     { icon: "x-circle",       bg: "#fee2e2", color: "#ef4444" },
+  message_received:   { icon: "message-circle", bg: "#f3e8ff", color: "#7c3aed" },
+  revision_requested: { icon: "edit-2",         bg: "#fef9c3", color: "#d97706" },
 };
 
 export default function AdminNotificationsScreen() {

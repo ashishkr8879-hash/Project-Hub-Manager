@@ -89,7 +89,7 @@ export default function CreateProjectScreen() {
   const [submitting, setSubmitting]               = useState(false);
   const [createdProject, setCreatedProject]       = useState<Project | null>(null);
 
-  // Reference state (after project creation)
+  // Reference state (after project creation — post-success screen)
   const [refs, setRefs]         = useState<RefInput[]>([]);
   const [addingRef, setAddingRef] = useState(false);
   const [refMode, setRefMode]   = useState<"link" | "file" | null>(null);
@@ -98,6 +98,16 @@ export default function CreateProjectScreen() {
   const [refNote, setRefNote]   = useState("");
   const [refFile, setRefFile]   = useState<{ name: string; size: string; type: string } | null>(null);
   const [savingRef, setSavingRef] = useState(false);
+
+  // Pre-creation queued refs (shown IN the form before submission)
+  const [pendingRefs, setPendingRefs]   = useState<RefInput[]>([]);
+  const [showPreRef, setShowPreRef]     = useState(false);
+  const [preRefMode, setPreRefMode]     = useState<"file" | "link" | null>(null);
+  const [preRefTitle, setPreRefTitle]   = useState("");
+  const [preRefUrl, setPreRefUrl]       = useState("");
+  const [preRefNote, setPreRefNote]     = useState("");
+  const [preRefFile, setPreRefFile]     = useState<{ name: string; size: string; type: string } | null>(null);
+
   const [extraField1, setExtraField1] = useState("");
   const [extraField2, setExtraField2] = useState("");
   const [showExtraPicker1, setShowExtraPicker1] = useState(false);
@@ -177,6 +187,8 @@ export default function CreateProjectScreen() {
     setExtraField1(""); setExtraField2(""); setShowExtraPicker1(false); setShowExtraPicker2(false);
     setRefs([]); setCreatedProject(null); setAddingRef(false); setRefMode(null);
     setRefTitle(""); setRefUrl(""); setRefNote(""); setRefFile(null);
+    setPendingRefs([]); setShowPreRef(false); setPreRefMode(null);
+    setPreRefTitle(""); setPreRefUrl(""); setPreRefNote(""); setPreRefFile(null);
   }
 
   async function handleSubmit() {
@@ -215,6 +227,14 @@ export default function CreateProjectScreen() {
       await queryClient.invalidateQueries({ queryKey: ["editor-projects"] });
       await queryClient.invalidateQueries({ queryKey: ["admin-profile"] });
       await queryClient.invalidateQueries({ queryKey: ["clients"] });
+      // Auto-upload any refs queued in the form
+      for (const r of pendingRefs) {
+        try {
+          await addReference(proj.id, { title: r.title, url: r.url || undefined, note: r.note, fileName: r.fileName, fileType: r.fileType });
+        } catch { /* ignore individual ref errors */ }
+      }
+      if (pendingRefs.length > 0) await queryClient.invalidateQueries({ queryKey: ["project-refs", proj.id] });
+      setRefs(pendingRefs.slice());
       setCreatedProject(proj);
     } catch (e: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -255,6 +275,49 @@ export default function CreateProjectScreen() {
       await queryClient.invalidateQueries({ queryKey: ["project-refs", createdProject.id] });
     } catch { Alert.alert("Error", "Could not save reference"); }
     finally { setSavingRef(false); }
+  }
+
+  async function handleQuickPickFile() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: false, multiple: false });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const sizeStr = asset.size
+        ? asset.size < 1024 * 1024 ? `${(asset.size / 1024).toFixed(1)} KB` : `${(asset.size / (1024 * 1024)).toFixed(1)} MB`
+        : "";
+      const title = asset.name.replace(/\.[^.]+$/, "");
+      setPendingRefs((prev) => [...prev, { title, url: "", note: "", fileName: asset.name, fileType: asset.mimeType ?? "application/octet-stream" }]);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch { Alert.alert("Error", "Could not open file picker"); }
+  }
+
+  async function handlePickPreRefFile() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: false, multiple: false });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const sizeStr = asset.size
+        ? asset.size < 1024 * 1024 ? `${(asset.size / 1024).toFixed(1)} KB` : `${(asset.size / (1024 * 1024)).toFixed(1)} MB`
+        : "";
+      setPreRefFile({ name: asset.name, size: sizeStr, type: asset.mimeType ?? "application/octet-stream" });
+      if (!preRefTitle.trim()) setPreRefTitle(asset.name.replace(/\.[^.]+$/, ""));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch { Alert.alert("Error", "Could not open file picker"); }
+  }
+
+  function handleAddPendingRef() {
+    if (!preRefTitle.trim()) { Alert.alert("Required", "Please enter a title"); return; }
+    if (preRefMode === "link" && !preRefUrl.trim()) { Alert.alert("Required", "Please enter a link URL"); return; }
+    if (preRefMode === "file" && !preRefFile) { Alert.alert("Required", "Please pick a file first"); return; }
+    setPendingRefs((prev) => [...prev, {
+      title: preRefTitle.trim(),
+      url: preRefMode === "link" ? preRefUrl.trim() : "",
+      note: preRefNote.trim(),
+      fileName: preRefMode === "file" ? preRefFile?.name : undefined,
+      fileType: preRefMode === "file" ? preRefFile?.type : undefined,
+    }]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPreRefTitle(""); setPreRefUrl(""); setPreRefNote(""); setPreRefFile(null); setShowPreRef(false); setPreRefMode(null);
   }
 
   // ── Success / Reference Upload state ──────────────────────────────────────────
@@ -623,6 +686,105 @@ export default function CreateProjectScreen() {
           placeholder={notesPlaceholder}
           placeholderTextColor={colors.mutedForeground} multiline numberOfLines={4} />
       </View>
+
+      {/* ── File Upload (pre-creation) ───────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>FILE UPLOAD <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_400Regular" }}>(OPTIONAL)</Text></Text>
+      <TouchableOpacity activeOpacity={0.75} onPress={handleQuickPickFile}
+        style={[styles.refModeBtn, { flex: undefined, backgroundColor: `${colors.adminPrimary}10`, borderColor: `${colors.adminPrimary}30` }]}
+      >
+        <Feather name="upload" size={16} color={colors.adminPrimary} />
+        <Text style={[styles.refModeBtnText, { color: colors.adminPrimary }]}>
+          {pendingRefs.filter((r) => r.fileName).length > 0
+            ? `${pendingRefs.filter((r) => r.fileName).length} File(s) Attached — Tap to Add More`
+            : "Tap to Attach Files"}
+        </Text>
+      </TouchableOpacity>
+
+      {/* ── References (pre-creation) ────────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>REFERENCES <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_400Regular" }}>(OPTIONAL)</Text></Text>
+      <Text style={[styles.refHint, { color: colors.mutedForeground }]}>Add briefs, moodboards, links, or any files for the editor.</Text>
+
+      {pendingRefs.map((r, i) => (
+        <View key={i} style={[styles.savedRef, { backgroundColor: `${colors.primary}08`, borderColor: `${colors.primary}25` }]}>
+          <Feather name={r.fileName ? "file" : "link"} size={14} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.savedRefTitle, { color: colors.foreground }]}>{r.title}</Text>
+            {r.fileName && <Text style={[styles.savedRefUrl, { color: colors.primary }]} numberOfLines={1}>📎 {r.fileName}</Text>}
+            {r.url ? <Text style={[styles.savedRefUrl, { color: colors.primary }]} numberOfLines={1}>{r.url}</Text> : null}
+            {r.note ? <Text style={[styles.savedRefNote, { color: colors.mutedForeground }]} numberOfLines={1}>{r.note}</Text> : null}
+          </View>
+          <TouchableOpacity onPress={() => setPendingRefs((prev) => prev.filter((_, j) => j !== i))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="x-circle" size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      {!showPreRef ? (
+        <View style={styles.refModeRow}>
+          <TouchableOpacity
+            onPress={() => { setShowPreRef(true); setPreRefMode("file"); }}
+            style={[styles.refModeBtn, { backgroundColor: `${colors.adminPrimary}10`, borderColor: `${colors.adminPrimary}30` }]}
+          >
+            <Feather name="upload" size={16} color={colors.adminPrimary} />
+            <Text style={[styles.refModeBtnText, { color: colors.adminPrimary }]}>Upload File Ref</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => { setShowPreRef(true); setPreRefMode("link"); }}
+            style={[styles.refModeBtn, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}
+          >
+            <Feather name="link" size={16} color={colors.primary} />
+            <Text style={[styles.refModeBtnText, { color: colors.primary }]}>Add Link</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={[styles.refForm, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.refFormTitle, { color: colors.foreground }]}>
+            {preRefMode === "file" ? "📎 Attach Reference File" : "🔗 Add Reference Link"}
+          </Text>
+
+          {preRefMode === "file" && (
+            <TouchableOpacity onPress={handlePickPreRefFile}
+              style={[styles.filePickBtn, { backgroundColor: preRefFile ? `${colors.adminPrimary}10` : colors.muted, borderColor: preRefFile ? colors.adminPrimary : colors.border }]}
+            >
+              <Feather name={preRefFile ? "check-circle" : "upload"} size={18} color={preRefFile ? colors.adminPrimary : colors.mutedForeground} />
+              <View style={{ flex: 1 }}>
+                {preRefFile
+                  ? (<><Text style={[styles.filePickName, { color: colors.foreground }]} numberOfLines={1}>{preRefFile.name}</Text>
+                      <Text style={[styles.filePickSize, { color: colors.mutedForeground }]}>{preRefFile.size}</Text></>)
+                  : <Text style={[styles.filePickPlaceholder, { color: colors.mutedForeground }]}>Tap to pick a file from device</Text>
+                }
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {preRefMode === "link" && (
+            <InputField label="URL *" value={preRefUrl} onChangeText={setPreRefUrl} placeholder="https://drive.google.com/..." colors={colors} />
+          )}
+
+          <InputField label="Title *" value={preRefTitle} onChangeText={setPreRefTitle} placeholder="e.g. Brand Guidelines" colors={colors} />
+
+          <View style={styles.field}>
+            <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Note (optional)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground, minHeight: 60 }]}
+              value={preRefNote} onChangeText={setPreRefNote}
+              placeholder="Any context for this reference..."
+              placeholderTextColor={colors.mutedForeground} multiline numberOfLines={3} />
+          </View>
+
+          <View style={styles.refFormBtns}>
+            <TouchableOpacity onPress={() => { setShowPreRef(false); setPreRefMode(null); setPreRefTitle(""); setPreRefUrl(""); setPreRefNote(""); setPreRefFile(null); }}
+              style={[styles.refCancelBtn, { borderColor: colors.border }]}>
+              <Text style={[styles.refCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleAddPendingRef}
+              style={[styles.refSaveBtn, { backgroundColor: colors.primary }]}>
+              <Feather name="plus" size={16} color="#fff" />
+              <Text style={styles.refSaveText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* ── Assign Team Member ───────────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>

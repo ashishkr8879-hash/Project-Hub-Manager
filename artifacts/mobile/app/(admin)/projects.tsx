@@ -287,9 +287,20 @@ function ProjectDetailModal({
 
                 {/* Editor + deadline + notes */}
                 <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={styles.metaRow}>
-                    <Feather name="user" size={14} color={colors.mutedForeground} />
-                    <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{project.editorName}</Text>
+                  <View style={[styles.metaRow, { justifyContent: "space-between" }]}>
+                    <View style={styles.metaRow}>
+                      <Feather name="user" size={14} color={colors.mutedForeground} />
+                      <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{project.editorName}</Text>
+                    </View>
+                    {project.editorPhone && (
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(`tel:${project.editorPhone}`)}
+                        style={[styles.callEditorBtn, { backgroundColor: `${colors.success}15`, borderColor: `${colors.success}30` }]}
+                      >
+                        <Feather name="phone-call" size={13} color={colors.success} />
+                        <Text style={[styles.callEditorText, { color: colors.success }]}>Call Editor</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                   {project.deadline && (
                     <View style={styles.metaRow}>
@@ -303,6 +314,12 @@ function ProjectDetailModal({
                     <View style={[styles.notesBox, { backgroundColor: colors.secondary }]}>
                       <Feather name="message-circle" size={13} color={colors.primary} />
                       <Text style={[styles.notesText, { color: colors.foreground }]}>{project.notes}</Text>
+                    </View>
+                  )}
+                  {project.script && (
+                    <View style={[styles.notesBox, { backgroundColor: "#f0fdf4", borderWidth: 1, borderColor: "#bbf7d0" }]}>
+                      <Feather name="file-text" size={13} color="#166534" />
+                      <Text style={[styles.notesText, { color: "#166534", fontFamily: "Inter_600SemiBold" }]}>Script: <Text style={{ fontFamily: "Inter_400Regular" }}>{project.script}</Text></Text>
                     </View>
                   )}
                 </View>
@@ -421,6 +438,8 @@ const styles = StyleSheet.create({
   simpleValueText: { fontSize: 14, fontFamily: "Inter_500Medium" },
   contactRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   contactText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  callEditorBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
+  callEditorText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   metaText: { fontSize: 13, fontFamily: "Inter_400Regular" },
   notesBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 10, borderRadius: 10 },

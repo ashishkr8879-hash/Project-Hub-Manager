@@ -3,6 +3,8 @@ import { router } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Platform,
   RefreshControl,
   ScrollView,
@@ -31,9 +33,20 @@ export default function EditorProfileScreen() {
     enabled: !!editorId,
   });
 
+  const ADMIN_PHONE = "+91 98765 00001";
+
   function handleLogout() {
-    setCurrentUser(null);
-    router.replace("/login");
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: () => { setCurrentUser(null); router.replace("/login"); } },
+    ]);
+  }
+
+  function handleCallAdmin() {
+    Alert.alert("Call Admin", `Call Divayshakati Admin at ${ADMIN_PHONE}?`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Call", onPress: () => Linking.openURL(`tel:${ADMIN_PHONE}`) },
+    ]);
   }
 
   const initials = (profile?.name ?? currentUser?.name ?? "E")
@@ -121,6 +134,15 @@ export default function EditorProfileScreen() {
               ))}
             </>
           )}
+
+          {/* Call Admin */}
+          <TouchableOpacity
+            onPress={handleCallAdmin}
+            style={[styles.logoutBtn, { backgroundColor: "#dcfce7", borderColor: "#86efac", borderWidth: 1 }]}
+          >
+            <Feather name="phone-call" size={16} color="#166534" />
+            <Text style={[styles.logoutText, { color: "#166534" }]}>Call Admin (Divayshakati)</Text>
+          </TouchableOpacity>
 
           {/* Logout */}
           <TouchableOpacity

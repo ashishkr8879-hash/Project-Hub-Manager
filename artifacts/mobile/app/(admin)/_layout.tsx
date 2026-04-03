@@ -105,7 +105,7 @@ function ClassicAdminTabLayout() {
         title: "Admin Profile",
         tabBarIcon: ({ color }) => isIOS
           ? <SymbolView name="person.circle" tintColor={color} size={24} />
-          : <Feather name="user-circle" size={22} color={color} />,
+          : <Feather name="user" size={22} color={color} />,
       }} />
     </Tabs>
   );

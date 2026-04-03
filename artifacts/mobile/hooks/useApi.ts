@@ -5,8 +5,13 @@ const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface Editor {
-  id: string; name: string; email: string;
+  id: string; name: string; email: string; username?: string;
   phone: string; specialization: string; joinedAt: string;
+  bankAccount?: string; location?: string;
+}
+
+export interface EditorFull extends Editor {
+  password: string;
 }
 
 export type ProjectType = "ugc" | "branded" | "corporate" | "wedding" | "social_media" | "other";
@@ -16,10 +21,10 @@ export interface Project {
   clientId?: string; clientName: string; clientPhone?: string; clientEmail?: string;
   projectName: string; projectType: ProjectType;
   totalValue: number; modelCost: number;
-  totalDeliverables: number; editorId: string; editorName: string;
+  totalDeliverables: number; editorId: string; editorName: string; editorPhone?: string;
   status: "pending" | "in_progress" | "completed";
   completedDeliverables: number;
-  createdAt: string; deadline?: string; notes?: string;
+  createdAt: string; deadline?: string; notes?: string; script?: string;
   revisionRequested: boolean;
 }
 
@@ -129,7 +134,19 @@ export const fetchClientProjects = (clientId: string) =>
 // ─── Editors ──────────────────────────────────────────────────────────────────
 
 export const fetchEditors = () => apiFetch<Editor[]>("/editors");
+export const fetchEditorFull = (id: string) => apiFetch<EditorFull>(`/editors/${id}/full`);
 export const fetchEditorProfile = (id: string) => apiFetch<EditorProfile>(`/editors/${id}/profile`);
+
+export interface CreateEditorPayload {
+  name: string; username: string; password: string; email?: string;
+  phone: string; specialization: string; location?: string; bankAccount?: string;
+}
+export const createEditor = (p: CreateEditorPayload) =>
+  apiFetch<Editor>("/editors", { method: "POST", body: JSON.stringify(p) });
+export const deleteEditor = (id: string) =>
+  apiFetch<{ success: boolean }>(`/editors/${id}`, { method: "DELETE" });
+export const updateEditor = (id: string, p: Partial<CreateEditorPayload>) =>
+  apiFetch<Editor>(`/editors/${id}`, { method: "PATCH", body: JSON.stringify(p) });
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
 
@@ -141,7 +158,7 @@ export interface CreateProjectPayload {
   clientId?: string; clientName: string; clientPhone?: string; clientEmail?: string;
   projectName: string; projectType: ProjectType;
   totalValue: number; modelCost?: number; totalDeliverables: number;
-  editorId: string; deadline?: string; notes?: string;
+  editorId: string; deadline?: string; notes?: string; script?: string;
 }
 
 export const createProject = (p: CreateProjectPayload) =>

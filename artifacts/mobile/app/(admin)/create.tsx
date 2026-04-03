@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { DatePickerModal } from "@/components/DatePickerModal";
 import { useColors } from "@/hooks/useColors";
 import {
   createProject,
@@ -53,6 +54,8 @@ export default function CreateProjectScreen() {
   const [totalDeliverables, setTotalDeliverables] = useState("");
   const [deadline, setDeadline]               = useState("");
   const [notes, setNotes]                     = useState("");
+  const [script, setScript]                   = useState("");
+  const [showDatePicker, setShowDatePicker]   = useState(false);
   const [selectedEditor, setSelectedEditor]   = useState<Editor | null>(null);
   const [submitting, setSubmitting]           = useState(false);
   const [createdProject, setCreatedProject]   = useState<Project | null>(null);
@@ -76,7 +79,7 @@ export default function CreateProjectScreen() {
   function resetForm() {
     setProjectType("branded"); setSelectedClient(null); setCustomClientName("");
     setProjectName(""); setTotalValue(""); setModelCost(""); setTotalDeliverables("");
-    setDeadline(""); setNotes(""); setSelectedEditor(null);
+    setDeadline(""); setNotes(""); setScript(""); setSelectedEditor(null);
     setRefs([]); setCreatedProject(null);
   }
 
@@ -105,6 +108,7 @@ export default function CreateProjectScreen() {
         editorId: selectedEditor.id,
         deadline: deadline.trim() || undefined,
         notes: notes.trim() || undefined,
+        script: script.trim() || undefined,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -321,7 +325,30 @@ export default function CreateProjectScreen() {
         </>
       )}
 
-      <InputField label="Deadline (optional)" value={deadline} onChangeText={setDeadline} placeholder="YYYY-MM-DD" colors={colors} />
+      {/* Deadline with calendar picker */}
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>DEADLINE (OPTIONAL)</Text>
+      <TouchableOpacity
+        onPress={() => setShowDatePicker(true)}
+        style={[styles.datePickerBtn, { backgroundColor: colors.card, borderColor: deadline ? colors.primary : colors.border, borderWidth: deadline ? 2 : 1 }]}
+      >
+        <Feather name="calendar" size={16} color={deadline ? colors.primary : colors.mutedForeground} />
+        <Text style={[styles.datePickerText, { color: deadline ? colors.foreground : colors.mutedForeground }]}>
+          {deadline ? new Date(deadline).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "Tap to pick a deadline date"}
+        </Text>
+        {deadline ? (
+          <TouchableOpacity onPress={() => setDeadline("")}>
+            <Feather name="x" size={14} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        ) : null}
+      </TouchableOpacity>
+
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>SCRIPT (OPTIONAL)</Text>
+      <View style={styles.field}>
+        <TextInput style={[styles.input, styles.textArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
+          value={script} onChangeText={setScript}
+          placeholder="Paste or type the video script here..."
+          placeholderTextColor={colors.mutedForeground} multiline numberOfLines={5} />
+      </View>
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>NOTES FOR EDITOR</Text>
       <View style={styles.field}>
@@ -362,6 +389,13 @@ export default function CreateProjectScreen() {
         {submitting ? <ActivityIndicator color="#fff" />
           : <><Feather name="plus" size={18} color="#fff" /><Text style={styles.submitText}>Create Project & Notify Editor</Text></>}
       </TouchableOpacity>
+
+      <DatePickerModal
+        visible={showDatePicker}
+        onClose={() => setShowDatePicker(false)}
+        selected={deadline}
+        onSelect={(d) => setDeadline(d)}
+      />
     </ScrollView>
   );
 }
@@ -418,6 +452,8 @@ const styles = StyleSheet.create({
   clientChipInitials: { fontSize: 14, fontFamily: "Inter_700Bold" },
   clientChipName: { fontSize: 11, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   clientChipBiz: { fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "center" },
+  datePickerBtn: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 12 },
+  datePickerText: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
   row: { flexDirection: "row", gap: 10 },
   halfField: { flex: 1, gap: 6 },
   field: { gap: 6 },

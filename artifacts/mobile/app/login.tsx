@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 import { login } from "@/hooks/useApi";
+
+const LOGO = require("../assets/images/logo.png");
+
+const SPECIALIZATIONS = ["Video Editor", "Graphic Designer", "Ads Setup", "Website Development", "Social Media Manager"];
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -51,22 +56,27 @@ export default function LoginScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.content, { paddingTop: topInset + 40, paddingBottom: bottomInset + 40 }]}
+      style={[styles.container, { backgroundColor: "#050d1a" }]}
+      contentContainerStyle={[styles.content, { paddingTop: topInset + 20, paddingBottom: bottomInset + 40 }]}
       keyboardShouldPersistTaps="handled"
     >
       {/* Brand Hero */}
       <View style={styles.hero}>
-        <View style={[styles.logo, { backgroundColor: colors.primary }]}>
-          <Feather name="play-circle" size={38} color="#fff" />
+        <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
+        <Text style={styles.brand}>Divayshakati</Text>
+        <Text style={styles.tagline}>Project Manager</Text>
+        <View style={styles.specRow}>
+          {SPECIALIZATIONS.map((s) => (
+            <View key={s} style={styles.specChip}>
+              <Text style={styles.specText}>{s}</Text>
+            </View>
+          ))}
         </View>
-        <Text style={[styles.brand, { color: colors.foreground }]}>Divyashakti</Text>
-        <Text style={[styles.tagline, { color: colors.mutedForeground }]}>Video Production Management</Text>
       </View>
 
       {/* Login Card */}
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Sign In</Text>
+      <View style={[styles.card, { backgroundColor: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.12)" }]}>
+        <Text style={styles.cardTitle}>Sign In</Text>
 
         {error !== "" && (
           <View style={[styles.errorBanner, { backgroundColor: "#fee2e2" }]}>
@@ -76,15 +86,15 @@ export default function LoginScreen() {
         )}
 
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.foreground }]}>Username</Text>
-          <View style={[styles.inputRow, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <Feather name="user" size={16} color={colors.mutedForeground} />
+          <Text style={styles.label}>Username</Text>
+          <View style={styles.inputRow}>
+            <Feather name="user" size={16} color="rgba(255,255,255,0.5)" />
             <TextInput
-              style={[styles.input, { color: colors.foreground }]}
+              style={styles.input}
               value={username}
               onChangeText={(v) => { setUsername(v); setError(""); }}
               placeholder="admin, alice, bob..."
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor="rgba(255,255,255,0.3)"
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="next"
@@ -94,16 +104,16 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.foreground }]}>Password</Text>
-          <View style={[styles.inputRow, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <Feather name="lock" size={16} color={colors.mutedForeground} />
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.inputRow}>
+            <Feather name="lock" size={16} color="rgba(255,255,255,0.5)" />
             <TextInput
               ref={passRef}
-              style={[styles.input, { color: colors.foreground }]}
+              style={styles.input}
               value={password}
               onChangeText={(v) => { setPassword(v); setError(""); }}
               placeholder="Your password"
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor="rgba(255,255,255,0.3)"
               secureTextEntry={!showPass}
               autoCapitalize="none"
               autoCorrect={false}
@@ -111,7 +121,7 @@ export default function LoginScreen() {
               onSubmitEditing={handleLogin}
             />
             <TouchableOpacity onPress={() => setShowPass(!showPass)}>
-              <Feather name={showPass ? "eye-off" : "eye"} size={16} color={colors.mutedForeground} />
+              <Feather name={showPass ? "eye-off" : "eye"} size={16} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
           </View>
         </View>
@@ -120,7 +130,7 @@ export default function LoginScreen() {
           activeOpacity={0.85}
           onPress={handleLogin}
           disabled={loading}
-          style={[styles.loginBtn, { backgroundColor: loading ? colors.muted : colors.primary }]}
+          style={[styles.loginBtn, { opacity: loading ? 0.7 : 1 }]}
         >
           {loading
             ? <ActivityIndicator color="#fff" />
@@ -129,13 +139,13 @@ export default function LoginScreen() {
       </View>
 
       {/* Hint */}
-      <View style={[styles.hintBox, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-        <Feather name="info" size={14} color={colors.primary} />
+      <View style={styles.hintBox}>
+        <Feather name="info" size={14} color="#f0c040" />
         <View style={styles.hintContent}>
-          <Text style={[styles.hintTitle, { color: colors.foreground }]}>Demo Credentials</Text>
-          <Text style={[styles.hintLine, { color: colors.mutedForeground }]}>Admin  :  admin / admin123</Text>
-          <Text style={[styles.hintLine, { color: colors.mutedForeground }]}>Editors:  alice / alice123  •  bob / bob123</Text>
-          <Text style={[styles.hintLine, { color: colors.mutedForeground }]}>           clara / clara123  •  david / david123</Text>
+          <Text style={styles.hintTitle}>Demo Credentials</Text>
+          <Text style={styles.hintLine}>Admin  :  admin / admin123</Text>
+          <Text style={styles.hintLine}>Editors:  alice / alice123  •  bob / bob123</Text>
+          <Text style={styles.hintLine}>           clara / clara123  •  david / david123</Text>
         </View>
       </View>
     </ScrollView>
@@ -145,22 +155,25 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 24, gap: 24 },
-  hero: { alignItems: "center", gap: 10 },
-  logo: { width: 84, height: 84, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  brand: { fontSize: 30, fontFamily: "Inter_700Bold", letterSpacing: -0.5 },
-  tagline: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  hero: { alignItems: "center", gap: 8 },
+  logoImg: { width: 160, height: 160 },
+  brand: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#f0c040", letterSpacing: 1 },
+  tagline: { fontSize: 14, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.7)", letterSpacing: 2 },
+  specRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center", marginTop: 8 },
+  specChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, backgroundColor: "rgba(96,165,250,0.15)", borderWidth: 1, borderColor: "rgba(96,165,250,0.3)" },
+  specText: { fontSize: 10, fontFamily: "Inter_500Medium", color: "#93c5fd" },
   card: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 16 },
-  cardTitle: { fontSize: 20, fontFamily: "Inter_700Bold", marginBottom: 4 },
+  cardTitle: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff", marginBottom: 4 },
   errorBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10 },
   errorText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
   field: { gap: 6 },
-  label: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  inputRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1 },
-  input: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
-  loginBtn: { paddingVertical: 15, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 4 },
-  loginBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  hintBox: { flexDirection: "row", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1, alignItems: "flex-start" },
+  label: { fontSize: 14, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.8)" },
+  inputRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.15)" },
+  input: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", color: "#fff" },
+  loginBtn: { paddingVertical: 15, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: 4, backgroundColor: "#d4a017" },
+  loginBtnText: { color: "#0a0a0a", fontSize: 16, fontFamily: "Inter_700Bold" },
+  hintBox: { flexDirection: "row", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1, alignItems: "flex-start", backgroundColor: "rgba(240,192,64,0.08)", borderColor: "rgba(240,192,64,0.2)" },
   hintContent: { flex: 1, gap: 2 },
-  hintTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 2 },
-  hintLine: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  hintTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#f0c040", marginBottom: 2 },
+  hintLine: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.6)" },
 });

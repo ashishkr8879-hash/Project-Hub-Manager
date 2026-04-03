@@ -5,8 +5,9 @@ const router: IRouter = Router();
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Editor {
-  id: string; name: string; email: string; password: string;
+  id: string; name: string; email: string; password: string; username: string;
   phone: string; specialization: string; joinedAt: string;
+  bankAccount?: string; location?: string;
 }
 
 interface Client {
@@ -40,10 +41,10 @@ interface Project {
   projectName: string; projectType: ProjectType;
   totalValue: number; modelCost: number;
   totalDeliverables: number;
-  editorId: string; editorName: string;
+  editorId: string; editorName: string; editorPhone?: string;
   status: "pending" | "in_progress" | "completed";
   completedDeliverables: number;
-  createdAt: string; deadline?: string; notes?: string;
+  createdAt: string; deadline?: string; notes?: string; script?: string;
   revisionRequested: boolean;   // "customisation" flag
 }
 
@@ -70,11 +71,12 @@ const ADMIN = {
   email: "admin@divyashakti.com", phone: "+91 98765 00001", role: "admin" as const,
 };
 
+let editorIdCounter = 5;
 const editors: Editor[] = [
-  { id: "e1", name: "Alice Johnson", email: "alice@divyashakti.com", password: "alice123", phone: "+91 98100 11111", specialization: "Wedding & Events",  joinedAt: "2023-01-15" },
-  { id: "e2", name: "Bob Martinez",  email: "bob@divyashakti.com",   password: "bob123",   phone: "+91 98100 22222", specialization: "Brand Commercials", joinedAt: "2023-03-20" },
-  { id: "e3", name: "Clara Lee",     email: "clara@divyashakti.com", password: "clara123", phone: "+91 98100 33333", specialization: "Social Media Reels",joinedAt: "2023-06-01" },
-  { id: "e4", name: "David Kim",     email: "david@divyashakti.com", password: "david123", phone: "+91 98100 44444", specialization: "Corporate Films",   joinedAt: "2024-01-10" },
+  { id: "e1", name: "Alice Johnson", username: "alice", email: "alice@divayshakati.com", password: "alice123", phone: "+91 98100 11111", specialization: "Video Editor",       joinedAt: "2023-01-15", bankAccount: "SBI 1234567890", location: "Mumbai" },
+  { id: "e2", name: "Bob Martinez",  username: "bob",   email: "bob@divayshakati.com",   password: "bob123",   phone: "+91 98100 22222", specialization: "Graphic Designer",   joinedAt: "2023-03-20", bankAccount: "HDFC 9876543210", location: "Delhi" },
+  { id: "e3", name: "Clara Lee",     username: "clara", email: "clara@divayshakati.com", password: "clara123", phone: "+91 98100 33333", specialization: "Social Media Manager",joinedAt: "2023-06-01", bankAccount: "ICICI 5555666677", location: "Bangalore" },
+  { id: "e4", name: "David Kim",     username: "david", email: "david@divayshakati.com", password: "david123", phone: "+91 98100 44444", specialization: "Website Development", joinedAt: "2024-01-10", bankAccount: "Axis 3344556677", location: "Hyderabad" },
 ];
 
 const clients: Client[] = [
@@ -87,11 +89,11 @@ const clients: Client[] = [
 let clientIdCounter = clients.length + 1;
 
 const projects: Project[] = [
-  { id: "p1", clientId: "c1", clientName: "TechCorp Inc",   clientPhone: "+91 99001 11111", clientEmail: "contact@techcorp.in",   projectName: "Brand Video Series",      projectType: "branded",      totalValue: 12000, modelCost: 0,    totalDeliverables: 6, editorId: "e1", editorName: "Alice Johnson", status: "in_progress", completedDeliverables: 3, createdAt: new Date(Date.now() - 7*86400000).toISOString(), deadline: new Date(Date.now() + 14*86400000).toISOString(), notes: "Focus on product close-ups. Color grade warm.", revisionRequested: true },
-  { id: "p2", clientId: "c2", clientName: "Sunrise Events", clientPhone: "+91 99001 22222", clientEmail: "hello@sunriseevents.in", projectName: "Wedding Highlight Reel",  projectType: "wedding",      totalValue: 3500,  modelCost: 0,    totalDeliverables: 2, editorId: "e2", editorName: "Bob Martinez",  status: "pending",     completedDeliverables: 0, createdAt: new Date(Date.now() - 2*86400000).toISOString(), deadline: new Date(Date.now() + 7*86400000).toISOString(), notes: "Cinematic style. Use provided music track.", revisionRequested: false },
-  { id: "p3", clientId: "c3", clientName: "FitLife App",    clientPhone: "+91 99001 33333", clientEmail: "brand@fitlife.in",       projectName: "UGC Product Reviews x5",  projectType: "ugc",          totalValue: 8500,  modelCost: 2500, totalDeliverables: 5, editorId: "e1", editorName: "Alice Johnson", status: "in_progress", completedDeliverables: 2, createdAt: new Date(Date.now() - 5*86400000).toISOString(), deadline: new Date(Date.now() + 10*86400000).toISOString(), notes: "Model booked. 15-30 sec each. Natural lighting.", revisionRequested: false },
-  { id: "p4", clientId: "c4", clientName: "ArtHouse Films", clientPhone: "+91 99001 44444", clientEmail: "info@arthouse.in",       projectName: "Short Film Edit",         projectType: "corporate",    totalValue: 6000,  modelCost: 0,    totalDeliverables: 3, editorId: "e3", editorName: "Clara Lee",    status: "in_progress", completedDeliverables: 1, createdAt: new Date(Date.now() - 5*86400000).toISOString(), deadline: new Date(Date.now() + 10*86400000).toISOString(), revisionRequested: false },
-  { id: "p5", clientId: "c5", clientName: "StyleBrand",     clientPhone: "+91 99001 55555", clientEmail: "collab@stylebrand.in",   projectName: "Instagram UGC Reel Pack", projectType: "ugc",          totalValue: 4500,  modelCost: 1200, totalDeliverables: 6, editorId: "e4", editorName: "David Kim",    status: "pending",     completedDeliverables: 0, createdAt: new Date(Date.now() - 1*86400000).toISOString(), deadline: new Date(Date.now() + 5*86400000).toISOString(), notes: "Model: Priya. 9:16 format only. Brand kit shared.", revisionRequested: false },
+  { id: "p1", clientId: "c1", clientName: "TechCorp Inc",   clientPhone: "+91 99001 11111", clientEmail: "contact@techcorp.in",   projectName: "Brand Video Series",      projectType: "branded",      totalValue: 12000, modelCost: 0,    totalDeliverables: 6, editorId: "e1", editorName: "Alice Johnson", editorPhone: "+91 98100 11111", status: "in_progress", completedDeliverables: 3, createdAt: new Date(Date.now() - 7*86400000).toISOString(), deadline: new Date(Date.now() + 14*86400000).toISOString(), notes: "Focus on product close-ups. Color grade warm.", revisionRequested: true },
+  { id: "p2", clientId: "c2", clientName: "Sunrise Events", clientPhone: "+91 99001 22222", clientEmail: "hello@sunriseevents.in", projectName: "Wedding Highlight Reel",  projectType: "wedding",      totalValue: 3500,  modelCost: 0,    totalDeliverables: 2, editorId: "e2", editorName: "Bob Martinez",  editorPhone: "+91 98100 22222", status: "pending",     completedDeliverables: 0, createdAt: new Date(Date.now() - 2*86400000).toISOString(), deadline: new Date(Date.now() + 7*86400000).toISOString(), notes: "Cinematic style. Use provided music track.", revisionRequested: false },
+  { id: "p3", clientId: "c3", clientName: "FitLife App",    clientPhone: "+91 99001 33333", clientEmail: "brand@fitlife.in",       projectName: "UGC Product Reviews x5",  projectType: "ugc",          totalValue: 8500,  modelCost: 2500, totalDeliverables: 5, editorId: "e1", editorName: "Alice Johnson", editorPhone: "+91 98100 11111", status: "in_progress", completedDeliverables: 2, createdAt: new Date(Date.now() - 5*86400000).toISOString(), deadline: new Date(Date.now() + 10*86400000).toISOString(), notes: "Model booked. 15-30 sec each. Natural lighting.", revisionRequested: false },
+  { id: "p4", clientId: "c4", clientName: "ArtHouse Films", clientPhone: "+91 99001 44444", clientEmail: "info@arthouse.in",       projectName: "Short Film Edit",         projectType: "corporate",    totalValue: 6000,  modelCost: 0,    totalDeliverables: 3, editorId: "e3", editorName: "Clara Lee",    editorPhone: "+91 98100 33333", status: "in_progress", completedDeliverables: 1, createdAt: new Date(Date.now() - 5*86400000).toISOString(), deadline: new Date(Date.now() + 10*86400000).toISOString(), revisionRequested: false },
+  { id: "p5", clientId: "c5", clientName: "StyleBrand",     clientPhone: "+91 99001 55555", clientEmail: "collab@stylebrand.in",   projectName: "Instagram UGC Reel Pack", projectType: "ugc",          totalValue: 4500,  modelCost: 1200, totalDeliverables: 6, editorId: "e4", editorName: "David Kim",    editorPhone: "+91 98100 44444", status: "pending",     completedDeliverables: 0, createdAt: new Date(Date.now() - 1*86400000).toISOString(), deadline: new Date(Date.now() + 5*86400000).toISOString(), notes: "Model: Priya. 9:16 format only. Brand kit shared.", revisionRequested: false },
 ];
 let projectIdCounter = projects.length + 1;
 
@@ -145,7 +147,7 @@ router.post("/auth/login", (req, res) => {
   if (username === ADMIN.username && password === ADMIN.password) {
     res.json({ id: ADMIN.id, name: ADMIN.name, role: ADMIN.role }); return;
   }
-  const editor = editors.find((e) => e.email.split("@")[0] === username && e.password === password);
+  const editor = editors.find((e) => (e.username === username || e.email.split("@")[0] === username) && e.password === password);
   if (editor) { res.json({ id: editor.id, name: editor.name, role: "editor", editorId: editor.id }); return; }
   res.status(401).json({ error: "Invalid username or password" });
 });
@@ -200,6 +202,60 @@ router.delete("/clients/:id", (req, res) => {
 
 router.get("/editors", (_req, res) => res.json(editors.map(({ password: _p, ...e }) => e)));
 
+router.get("/editors/:id/full", (req, res) => {
+  const editor = editors.find((e) => e.id === req.params.id);
+  if (!editor) { res.status(404).json({ error: "Editor not found" }); return; }
+  res.json(editor);
+});
+
+router.post("/editors", (req, res) => {
+  const { name, username, password, email, phone, specialization, location, bankAccount } = req.body;
+  if (!name || !username || !password || !phone || !specialization) {
+    res.status(400).json({ error: "name, username, password, phone, specialization required" }); return;
+  }
+  if (editors.find((e) => e.username === username)) {
+    res.status(400).json({ error: "Username already taken" }); return;
+  }
+  const editor: Editor = {
+    id: `e${editorIdCounter++}`, name, username, password, email: email || "",
+    phone, specialization, joinedAt: new Date().toISOString().split("T")[0],
+    bankAccount: bankAccount || "", location: location || "",
+  };
+  editors.push(editor);
+  res.status(201).json({ ...editor, password: undefined });
+});
+
+router.patch("/editors/:id", (req, res) => {
+  const editor = editors.find((e) => e.id === req.params.id);
+  if (!editor) { res.status(404).json({ error: "Editor not found" }); return; }
+  const { name, username, password, email, phone, specialization, location, bankAccount } = req.body;
+  if (username && username !== editor.username && editors.find((e) => e.username === username && e.id !== editor.id)) {
+    res.status(400).json({ error: "Username already taken" }); return;
+  }
+  if (name) editor.name = name;
+  if (username) editor.username = username;
+  if (password) editor.password = password;
+  if (email) editor.email = email;
+  if (phone) editor.phone = phone;
+  if (specialization) editor.specialization = specialization;
+  if (location !== undefined) editor.location = location;
+  if (bankAccount !== undefined) editor.bankAccount = bankAccount;
+  res.json({ ...editor, password: undefined });
+});
+
+router.delete("/editors/:id", (req, res) => {
+  const idx = editors.findIndex((e) => e.id === req.params.id);
+  if (idx === -1) { res.status(404).json({ error: "Editor not found" }); return; }
+  editors.splice(idx, 1); res.json({ success: true });
+});
+
+// Admin gets full editor info (including credentials)
+router.get("/editors/:editorId/full", (req, res) => {
+  const editor = editors.find((e) => e.id === req.params.editorId);
+  if (!editor) { res.status(404).json({ error: "Editor not found" }); return; }
+  res.json(editor);
+});
+
 router.get("/editors/:editorId/profile", (req, res) => {
   const editor = editors.find((e) => e.id === req.params.editorId);
   if (!editor) { res.status(404).json({ error: "Editor not found" }); return; }
@@ -245,7 +301,7 @@ router.get("/dashboard/stats", (_req, res) => {
 });
 
 router.post("/projects", (req, res) => {
-  const { clientId, clientName, clientPhone, clientEmail, projectName, projectType, totalValue, modelCost, totalDeliverables, editorId, deadline, notes } = req.body;
+  const { clientId, clientName, clientPhone, clientEmail, projectName, projectType, totalValue, modelCost, totalDeliverables, editorId, deadline, notes, script } = req.body;
   if (!clientName || !projectName || totalValue == null || totalDeliverables == null || !editorId) {
     res.status(400).json({ error: "All fields required" }); return;
   }
@@ -255,9 +311,9 @@ router.post("/projects", (req, res) => {
     id: `p${projectIdCounter++}`, clientId, clientName, clientPhone, clientEmail,
     projectName, projectType: projectType || "other",
     totalValue: Number(totalValue), modelCost: Number(modelCost) || 0,
-    totalDeliverables: Number(totalDeliverables), editorId, editorName: editor.name,
+    totalDeliverables: Number(totalDeliverables), editorId, editorName: editor.name, editorPhone: editor.phone,
     status: "pending", completedDeliverables: 0, createdAt: new Date().toISOString(),
-    deadline, notes, revisionRequested: false,
+    deadline, notes, script: script || undefined, revisionRequested: false,
   };
   projects.push(project);
   pushNotif({ userId: editorId, type: "project_assigned", title: "New Project Assigned", message: `You have been assigned: ${projectName} by ${clientName}`, projectId: project.id });

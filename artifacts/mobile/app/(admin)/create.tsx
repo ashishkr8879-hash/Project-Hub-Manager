@@ -689,16 +689,25 @@ export default function CreateProjectScreen() {
 
       {/* ── File Upload (pre-creation) ───────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>FILE UPLOAD <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_400Regular" }}>(OPTIONAL)</Text></Text>
-      <TouchableOpacity activeOpacity={0.75} onPress={handleQuickPickFile}
-        style={[styles.refModeBtn, { flex: undefined, backgroundColor: `${colors.adminPrimary}10`, borderColor: `${colors.adminPrimary}30` }]}
-      >
-        <Feather name="upload" size={16} color={colors.adminPrimary} />
-        <Text style={[styles.refModeBtnText, { color: colors.adminPrimary }]}>
-          {pendingRefs.filter((r) => r.fileName).length > 0
-            ? `${pendingRefs.filter((r) => r.fileName).length} File(s) Attached — Tap to Add More`
-            : "Tap to Attach Files"}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.refModeRow}>
+        <TouchableOpacity activeOpacity={0.75} onPress={handleQuickPickFile}
+          style={[styles.refModeBtn, { backgroundColor: `${colors.adminPrimary}10`, borderColor: `${colors.adminPrimary}30` }]}
+        >
+          <Feather name="upload" size={16} color={colors.adminPrimary} />
+          <Text style={[styles.refModeBtnText, { color: colors.adminPrimary }]}>
+            {pendingRefs.filter((r) => r.fileName).length > 0
+              ? `${pendingRefs.filter((r) => r.fileName).length} File(s)`
+              : "Attach File"}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity activeOpacity={0.75}
+          onPress={() => { setShowPreRef(true); setPreRefMode("link"); }}
+          style={[styles.refModeBtn, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}
+        >
+          <Feather name="link" size={16} color={colors.primary} />
+          <Text style={[styles.refModeBtnText, { color: colors.primary }]}>Add Link</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ── References (pre-creation) ────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>REFERENCES <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_400Regular" }}>(OPTIONAL)</Text></Text>

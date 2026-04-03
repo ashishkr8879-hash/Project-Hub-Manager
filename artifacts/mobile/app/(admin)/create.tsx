@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -44,6 +44,22 @@ const PROJECT_TYPES: { value: ProjectType; label: string; icon: string; tag?: st
 
 const BUSINESS_TYPES = ["E-commerce", "Healthcare", "Fashion", "Food & Beverage", "Tech", "Entertainment", "Real Estate", "Education", "Fitness", "Other"];
 
+const EXTRA1_OPTIONS: Partial<Record<ProjectType, string[]>> = {
+  social_media:   ["Instagram", "YouTube", "Facebook", "LinkedIn", "All Platforms"],
+  graphic_design: ["PNG", "PDF", "JPEG", "Vector (AI/EPS)", "All Formats"],
+  ads_setup:      ["Meta/Facebook", "Google Ads", "Instagram Ads", "YouTube Ads", "LinkedIn Ads", "Other"],
+  website:        ["Landing Page", "E-commerce", "Portfolio", "Blog", "Multi-page Site", "Other"],
+};
+const EXTRA1_LABELS: Partial<Record<ProjectType, string>> = {
+  social_media: "Platform", graphic_design: "Output Format", ads_setup: "Ad Platform", website: "Website Type",
+};
+const EXTRA2_OPTIONS: Partial<Record<ProjectType, string[]>> = {
+  ads_setup: ["Lead Generation", "Sales / Conversions", "Brand Awareness", "Website Traffic", "App Installs", "Engagement"],
+};
+const EXTRA2_LABELS: Partial<Record<ProjectType, string>> = {
+  ads_setup: "Campaign Objective",
+};
+
 interface RefInput { title: string; url: string; note: string; fileName?: string; fileType?: string; }
 
 export default function CreateProjectScreen() {
@@ -82,21 +98,83 @@ export default function CreateProjectScreen() {
   const [refNote, setRefNote]   = useState("");
   const [refFile, setRefFile]   = useState<{ name: string; size: string; type: string } | null>(null);
   const [savingRef, setSavingRef] = useState(false);
+  const [extraField1, setExtraField1] = useState("");
+  const [extraField2, setExtraField2] = useState("");
+  const [showExtraPicker1, setShowExtraPicker1] = useState(false);
+  const [showExtraPicker2, setShowExtraPicker2] = useState(false);
 
   const { data: editors = [], isLoading: editorsLoading } = useQuery({ queryKey: ["editors"], queryFn: fetchEditors });
   const { data: clients = [], isLoading: clientsLoading } = useQuery({ queryKey: ["clients"], queryFn: fetchClients });
 
-  const isUGC    = projectType === "ugc";
-  const isAI     = projectType === "ai_video";
-  const tv       = parseFloat(totalValue) || 0;
-  const mc       = parseFloat(modelCost) || 0;
-  const netPayout = tv - mc;
+  const isVideoType    = ["ugc", "ai_video", "editing", "branded", "corporate", "wedding"].includes(projectType);
+  const isUGC          = projectType === "ugc";
+  const isAI           = projectType === "ai_video";
+  const isSocialMedia  = projectType === "social_media";
+  const isGraphicDesign= projectType === "graphic_design";
+  const isAdsSetup     = projectType === "ads_setup";
+  const isWebsite      = projectType === "website";
+  const tv             = parseFloat(totalValue) || 0;
+  const mc             = parseFloat(modelCost) || 0;
+  const netPayout      = tv - mc;
+
+  const deliverableLabel =
+    isVideoType    ? "No. of Videos"  :
+    isSocialMedia  ? "No. of Posts"   :
+    isGraphicDesign? "No. of Designs" :
+    isAdsSetup     ? "No. of Ad Sets" :
+    isWebsite      ? "No. of Pages"   : "Deliverables";
+
+  const scriptLabel =
+    isVideoType    ? "Script"                        :
+    isSocialMedia  ? "Content Brief / Captions"      :
+    isGraphicDesign? "Design Brief"                  :
+    isAdsSetup     ? "Campaign Description"          :
+    isWebsite      ? "Requirements & Features"       : "Project Brief";
+
+  const scriptPlaceholder =
+    isVideoType    ? "Paste or type the video script here..."            :
+    isSocialMedia  ? "Content ideas, caption style, hashtags..."         :
+    isGraphicDesign? "Design requirements, style, mood, colors..."       :
+    isAdsSetup     ? "Campaign goals, target audience, key messages..."  :
+    isWebsite      ? "Pages needed, features, integrations, CMS..."      : "Describe the project requirements...";
+
+  const notesLabel =
+    isVideoType    ? "Notes for Editor"         :
+    isGraphicDesign? "Notes for Designer"       :
+    isAdsSetup     ? "Notes for Ads Manager"    :
+    isWebsite      ? "Notes for Developer"      :
+    isSocialMedia  ? "Notes for Manager"        : "Additional Notes";
+
+  const notesPlaceholder =
+    isVideoType    ? "Instructions, style guidelines, model details..."  :
+    isGraphicDesign? "Ref styles, fonts to use, what to avoid..."        :
+    isAdsSetup     ? "Budget range, demographics, past performance..."   :
+    isWebsite      ? "Tech stack, integrations, hosting preferences..."  :
+    isSocialMedia  ? "Tone of voice, posting schedule, strategy..."      : "Any additional instructions...";
+
+  // Reset type-specific fields when project type changes
+  useEffect(() => {
+    setExtraField1(""); setExtraField2("");
+    setShowExtraPicker1(false); setShowExtraPicker2(false);
+  }, [projectType]);
+
+  function buildNotes() {
+    const parts: string[] = [];
+    const l1 = EXTRA1_LABELS[projectType];
+    if (l1 && extraField1) parts.push(`${l1}: ${extraField1}`);
+    const l2 = EXTRA2_LABELS[projectType];
+    if (l2 && extraField2) parts.push(`${l2}: ${extraField2}`);
+    const meta = parts.join(" | ");
+    const userNotes = notes.trim();
+    return (meta && userNotes) ? `${meta}\n${userNotes}` : (meta || userNotes || undefined);
+  }
 
   function resetForm() {
     setProjectType("ugc"); setSelectedClient(null);
     setCustomClientName(""); setCustomClientPhone(""); setCustomClientEmail(""); setCustomClientBiz("Other"); setCustomClientCity("");
     setProjectName(""); setTotalValue(""); setModelCost(""); setTotalDeliverables("");
     setDeadline(""); setNotes(""); setScript(""); setSelectedEditor(null);
+    setExtraField1(""); setExtraField2(""); setShowExtraPicker1(false); setShowExtraPicker2(false);
     setRefs([]); setCreatedProject(null); setAddingRef(false); setRefMode(null);
     setRefTitle(""); setRefUrl(""); setRefNote(""); setRefFile(null);
   }
@@ -127,7 +205,7 @@ export default function CreateProjectScreen() {
         totalDeliverables: parseInt(totalDeliverables, 10),
         editorId: selectedEditor.id,
         deadline: deadline.trim() || undefined,
-        notes: notes.trim() || undefined,
+        notes: buildNotes(),
         script: script.trim() || undefined,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -428,11 +506,63 @@ export default function CreateProjectScreen() {
           </View>
         </View>
         <View style={styles.halfField}>
-          <Text style={[styles.fieldLabel, { color: colors.foreground }]}>No. of Videos *</Text>
+          <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{deliverableLabel} *</Text>
           <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
             value={totalDeliverables} onChangeText={setTotalDeliverables} placeholder="4" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
         </View>
       </View>
+
+      {/* ── Type-specific extra fields ────────────────────────────────────── */}
+      {EXTRA1_OPTIONS[projectType] && (
+        <View style={styles.field}>
+          <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{EXTRA1_LABELS[projectType]}</Text>
+          <TouchableOpacity
+            onPress={() => setShowExtraPicker1(!showExtraPicker1)}
+            style={[styles.input, styles.pickerRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Text style={{ color: extraField1 ? colors.foreground : colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 14, flex: 1 }}>
+              {extraField1 || `Select ${EXTRA1_LABELS[projectType]}...`}
+            </Text>
+            <Feather name={showExtraPicker1 ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          {showExtraPicker1 && (
+            <View style={[styles.bizDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {(EXTRA1_OPTIONS[projectType] ?? []).map((opt) => (
+                <TouchableOpacity key={opt} onPress={() => { setExtraField1(opt); setShowExtraPicker1(false); }}
+                  style={[styles.bizOption, { backgroundColor: extraField1 === opt ? `${colors.primary}12` : "transparent" }]}>
+                  <Text style={[styles.bizOptionText, { color: extraField1 === opt ? colors.primary : colors.foreground }]}>{opt}</Text>
+                  {extraField1 === opt && <Feather name="check" size={14} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+      {EXTRA2_OPTIONS[projectType] && (
+        <View style={styles.field}>
+          <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{EXTRA2_LABELS[projectType]}</Text>
+          <TouchableOpacity
+            onPress={() => setShowExtraPicker2(!showExtraPicker2)}
+            style={[styles.input, styles.pickerRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Text style={{ color: extraField2 ? colors.foreground : colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 14, flex: 1 }}>
+              {extraField2 || `Select ${EXTRA2_LABELS[projectType]}...`}
+            </Text>
+            <Feather name={showExtraPicker2 ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          {showExtraPicker2 && (
+            <View style={[styles.bizDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {(EXTRA2_OPTIONS[projectType] ?? []).map((opt) => (
+                <TouchableOpacity key={opt} onPress={() => { setExtraField2(opt); setShowExtraPicker2(false); }}
+                  style={[styles.bizOption, { backgroundColor: extraField2 === opt ? `${colors.primary}12` : "transparent" }]}>
+                  <Text style={[styles.bizOptionText, { color: extraField2 === opt ? colors.primary : colors.foreground }]}>{opt}</Text>
+                  {extraField2 === opt && <Feather name="check" size={14} color={colors.primary} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
 
       {(isUGC || isAI) && (
         <>
@@ -476,26 +606,28 @@ export default function CreateProjectScreen() {
         )}
       </TouchableOpacity>
 
-      {/* ── Script ───────────────────────────────────────────────────────────── */}
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>SCRIPT (OPTIONAL)</Text>
+      {/* ── Script / Brief ───────────────────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>{scriptLabel.toUpperCase()} (OPTIONAL)</Text>
       <View style={styles.field}>
         <TextInput style={[styles.input, styles.textArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
           value={script} onChangeText={setScript}
-          placeholder="Paste or type the video script here..."
+          placeholder={scriptPlaceholder}
           placeholderTextColor={colors.mutedForeground} multiline numberOfLines={5} />
       </View>
 
       {/* ── Notes ────────────────────────────────────────────────────────────── */}
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>NOTES FOR EDITOR</Text>
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>{notesLabel.toUpperCase()}</Text>
       <View style={styles.field}>
         <TextInput style={[styles.input, styles.textArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
           value={notes} onChangeText={setNotes}
-          placeholder="Instructions, style guidelines, model details..."
+          placeholder={notesPlaceholder}
           placeholderTextColor={colors.mutedForeground} multiline numberOfLines={4} />
       </View>
 
-      {/* ── Assign Editor ────────────────────────────────────────────────────── */}
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>ASSIGN EDITOR *</Text>
+      {/* ── Assign Team Member ───────────────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>
+        {isVideoType ? "ASSIGN EDITOR *" : isGraphicDesign ? "ASSIGN DESIGNER *" : isAdsSetup ? "ASSIGN ADS MANAGER *" : isWebsite ? "ASSIGN DEVELOPER *" : isSocialMedia ? "ASSIGN MANAGER *" : "ASSIGN TEAM MEMBER *"}
+      </Text>
       {editorsLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
       ) : (

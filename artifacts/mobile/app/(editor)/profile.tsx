@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -50,7 +51,13 @@ export default function EditorProfileScreen() {
   function handleLogout() {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: () => { setCurrentUser(null); } },
+      {
+        text: "Sign Out", style: "destructive",
+        onPress: () => {
+          setCurrentUser(null);
+          router.replace("/login");
+        },
+      },
     ]);
   }
 

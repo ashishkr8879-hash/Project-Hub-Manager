@@ -23,6 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { useEditorTheme, getSpecTheme } from "@/hooks/useEditorTheme";
 import { fetchEditorProfile, fetchEditors, fetchEditorAnalytics, Editor } from "@/hooks/useApi";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -46,9 +47,11 @@ function toDateKey(year: number, month: number, day: number) {
 function MemberCalendar({
   projectsByDate,
   colors,
+  accentColor,
 }: {
   projectsByDate: { date: string; projects: any[]; dayRevenue: number }[];
   colors: ReturnType<typeof useColors>;
+  accentColor: string;
 }) {
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
@@ -122,8 +125,8 @@ function MemberCalendar({
               key={key}
               style={[
                 calStyles.cell,
-                isSelected && { backgroundColor: colors.editorPrimary, borderRadius: 10 },
-                isToday && !isSelected && { borderWidth: 1.5, borderColor: colors.editorPrimary, borderRadius: 10 },
+                isSelected && { backgroundColor: accentColor, borderRadius: 10 },
+                isToday && !isSelected && { borderWidth: 1.5, borderColor: accentColor, borderRadius: 10 },
               ]}
               onPress={() => {
                 if (count > 0) {
@@ -135,13 +138,13 @@ function MemberCalendar({
             >
               <Text style={[
                 calStyles.dayNum,
-                { color: isSelected ? "#fff" : isToday ? colors.editorPrimary : colors.foreground },
+                { color: isSelected ? "#fff" : isToday ? accentColor : colors.foreground },
               ]}>
                 {day}
               </Text>
               {count > 0 && (
                 <View style={[calStyles.dot, { backgroundColor: isSelected ? "#fff" : dotColor(count) }]}>
-                  <Text style={[calStyles.dotCount, { color: isSelected ? colors.editorPrimary : "#fff" }]}>
+                  <Text style={[calStyles.dotCount, { color: isSelected ? accentColor : "#fff" }]}>
                     {count}
                   </Text>
                 </View>
@@ -171,7 +174,7 @@ function MemberCalendar({
       {selectedEntry && selectedDay && (
         <View style={[calStyles.dayDetail, { borderTopColor: colors.border }]}>
           <View style={calStyles.dayDetailHeader}>
-            <Text style={[calStyles.dayDetailDate, { color: colors.editorPrimary }]}>
+            <Text style={[calStyles.dayDetailDate, { color: accentColor }]}>
               {new Date(selectedDay + "T00:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </Text>
             <View style={[calStyles.dayRevBadge, { backgroundColor: `${colors.success}18` }]}>
@@ -201,6 +204,7 @@ function MemberCalendar({
 export default function EditorProfileScreen() {
   const colors = useColors();
   const { currentUser, setCurrentUser } = useApp();
+  const theme = useEditorTheme(currentUser?.specialization);
   const insets = useSafeAreaInsets();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const editorId = currentUser?.editorId ?? currentUser?.id ?? "";
@@ -224,6 +228,8 @@ export default function EditorProfileScreen() {
     queryFn: () => fetchEditorAnalytics(selectedMember!.id),
     enabled: !!selectedMember,
   });
+
+  const memberTheme = getSpecTheme(selectedMember?.specialization);
 
   useEffect(() => {
     if (!editorId) return;
@@ -299,30 +305,30 @@ export default function EditorProfileScreen() {
       <ScrollView
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 100 }]}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={colors.editorPrimary} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={theme.primary} />}
       >
         {isLoading ? (
-          <View style={styles.loader}><ActivityIndicator color={colors.editorPrimary} /></View>
+          <View style={styles.loader}><ActivityIndicator color={theme.primary} /></View>
         ) : profile ? (
           <>
             {/* ── Header ─────────────────────────────────────────────────── */}
-            <View style={[styles.headerCard, { backgroundColor: colors.editorPrimary }]}>
+            <View style={[styles.headerCard, { backgroundColor: theme.primary }]}>
               <View style={styles.avatarWrapper}>
                 <View style={styles.avatarRing}>
                   {profileImage ? (
                     <Image source={{ uri: profileImage }} style={styles.avatarImg} />
                   ) : (
                     <View style={[styles.avatar, { backgroundColor: "#fff" }]}>
-                      <Text style={[styles.avatarText, { color: colors.editorPrimary }]}>{initials}</Text>
+                      <Text style={[styles.avatarText, { color: theme.primary }]}>{initials}</Text>
                     </View>
                   )}
                 </View>
                 <TouchableOpacity
                   onPress={handlePickImage}
-                  style={[styles.editPhotoBtn, { backgroundColor: "#fff", borderColor: colors.editorPrimary }]}
+                  style={[styles.editPhotoBtn, { backgroundColor: "#fff", borderColor: theme.primary }]}
                   activeOpacity={0.8}
                 >
-                  <Feather name="camera" size={13} color={colors.editorPrimary} />
+                  <Feather name="camera" size={13} color={theme.primary} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.profileName}>{profile.name}</Text>
@@ -346,11 +352,11 @@ export default function EditorProfileScreen() {
             {/* ── Stats ──────────────────────────────────────────────────── */}
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>My Statistics</Text>
             <View style={styles.statsGrid}>
-              <StatBox label="Total Projects"   value={String(profile.stats.totalProjects)}       color={colors.editorPrimary} colors={colors} />
+              <StatBox label="Total Projects"   value={String(profile.stats.totalProjects)}       color={theme.primary} colors={colors} />
               <StatBox label="Completed"         value={String(profile.stats.completedProjects)}   color={colors.success}       colors={colors} />
               <StatBox label="In Progress"       value={String(profile.stats.inProgressProjects)}  color={colors.primary}       colors={colors} />
               <StatBox label="Pending"           value={String(profile.stats.pendingProjects)}     color={colors.warning}       colors={colors} />
-              <StatBox label="Videos Uploaded"   value={String(profile.stats.totalVideosUploaded)} color={colors.editorPrimary} colors={colors} />
+              <StatBox label="Videos Uploaded"   value={String(profile.stats.totalVideosUploaded)} color={theme.primary} colors={colors} />
               <StatBox label="Approved"          value={String(profile.stats.approvedVideos)}      color={colors.success}       colors={colors} />
               <StatBox label="Rejected"          value={String(profile.stats.rejectedVideos)}      color={colors.destructive}   colors={colors} />
               <StatBox label="In Review"         value={String(profile.stats.pendingReviewVideos)} color={colors.warning}       colors={colors} />
@@ -393,8 +399,8 @@ export default function EditorProfileScreen() {
           <View style={styles.errorBox}>
             <Feather name="alert-circle" size={32} color={colors.mutedForeground} />
             <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Could not load profile</Text>
-            <TouchableOpacity onPress={() => refetch()} style={[styles.retryBtn, { borderColor: colors.editorPrimary }]}>
-              <Text style={{ color: colors.editorPrimary, fontFamily: "Inter_600SemiBold" }}>Retry</Text>
+            <TouchableOpacity onPress={() => refetch()} style={[styles.retryBtn, { borderColor: theme.primary }]}>
+              <Text style={{ color: theme.primary, fontFamily: "Inter_600SemiBold" }}>Retry</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -413,8 +419,8 @@ export default function EditorProfileScreen() {
                   activeOpacity={0.75}
                   style={[styles.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
-                  <View style={[styles.memberAvatar, { backgroundColor: `${colors.editorPrimary}22` }]}>
-                    <Text style={[styles.memberInitials, { color: colors.editorPrimary }]}>{memberInitials}</Text>
+                  <View style={[styles.memberAvatar, { backgroundColor: `${theme.primary}22` }]}>
+                    <Text style={[styles.memberInitials, { color: theme.primary }]}>{memberInitials}</Text>
                   </View>
                   <View style={styles.memberInfo}>
                     <Text style={[styles.memberName, { color: colors.foreground }]}>{member.name}</Text>
@@ -466,11 +472,11 @@ export default function EditorProfileScreen() {
 
           <ScrollView contentContainerStyle={styles.modalContent}>
             {memberProfileLoading ? (
-              <ActivityIndicator color={colors.editorPrimary} style={{ marginTop: 60 }} />
+              <ActivityIndicator color={memberTheme.primary} style={{ marginTop: 60 }} />
             ) : memberProfile && selectedMember ? (
               <>
                 {/* Hero */}
-                <View style={[styles.memberHero, { backgroundColor: colors.editorPrimary }]}>
+                <View style={[styles.memberHero, { backgroundColor: memberTheme.primary }]}>
                   <View style={[styles.memberHeroAvatar, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
                     <Text style={styles.memberHeroInitials}>
                       {selectedMember.name.split(" ").map((w: string) => w[0]).join("").toUpperCase()}
@@ -493,11 +499,11 @@ export default function EditorProfileScreen() {
                 {/* Stats */}
                 <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4 }]}>Statistics</Text>
                 <View style={styles.statsGrid}>
-                  <StatBox label="Total Projects"   value={String((memberProfile as any).stats?.totalProjects ?? 0)}       color={colors.editorPrimary} colors={colors} />
+                  <StatBox label="Total Projects"   value={String((memberProfile as any).stats?.totalProjects ?? 0)}       color={memberTheme.primary} colors={colors} />
                   <StatBox label="Completed"         value={String((memberProfile as any).stats?.completedProjects ?? 0)}   color={colors.success}       colors={colors} />
                   <StatBox label="In Progress"       value={String((memberProfile as any).stats?.inProgressProjects ?? 0)}  color={colors.primary}       colors={colors} />
                   <StatBox label="Pending"           value={String((memberProfile as any).stats?.pendingProjects ?? 0)}     color={colors.warning}       colors={colors} />
-                  <StatBox label="Videos Uploaded"   value={String((memberProfile as any).stats?.totalVideosUploaded ?? 0)} color={colors.editorPrimary} colors={colors} />
+                  <StatBox label="Videos Uploaded"   value={String((memberProfile as any).stats?.totalVideosUploaded ?? 0)} color={memberTheme.primary} colors={colors} />
                   <StatBox label="Approved"          value={String((memberProfile as any).stats?.approvedVideos ?? 0)}      color={colors.success}       colors={colors} />
                   <StatBox label="Rejected"          value={String((memberProfile as any).stats?.rejectedVideos ?? 0)}      color={colors.destructive}   colors={colors} />
                   <StatBox label="In Review"         value={String((memberProfile as any).stats?.pendingReviewVideos ?? 0)} color={colors.warning}       colors={colors} />
@@ -524,6 +530,7 @@ export default function EditorProfileScreen() {
                 <MemberCalendar
                   projectsByDate={(memberProfile as any).projectsByDate ?? []}
                   colors={colors}
+                  accentColor={memberTheme.primary}
                 />
 
                 {/* Recent Projects */}

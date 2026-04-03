@@ -7,6 +7,8 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { useColors } from "@/hooks/useColors";
+import { useApp } from "@/context/AppContext";
+import { useEditorTheme } from "@/hooks/useEditorTheme";
 
 function NativeEditorTabLayout() {
   return (
@@ -33,6 +35,8 @@ function NativeEditorTabLayout() {
 
 function ClassicEditorTabLayout() {
   const colors = useColors();
+  const { currentUser } = useApp();
+  const theme = useEditorTheme(currentUser?.specialization);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
@@ -41,7 +45,7 @@ function ClassicEditorTabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.editorPrimary,
+        tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: true,
         headerStyle: { backgroundColor: colors.background },

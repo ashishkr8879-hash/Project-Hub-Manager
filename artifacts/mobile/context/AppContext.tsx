@@ -14,6 +14,7 @@ interface AppUser {
   name: string;
   role: UserRole;
   editorId?: string;
+  specialization?: string;
 }
 
 interface AppContextType {

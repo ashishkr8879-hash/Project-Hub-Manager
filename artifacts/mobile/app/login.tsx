@@ -46,7 +46,7 @@ export default function LoginScreen() {
     try {
       const user = await login({ username: username.trim(), password });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setCurrentUser({ id: user.id, name: user.name, role: user.role, editorId: user.editorId });
+      setCurrentUser({ id: user.id, name: user.name, role: user.role, editorId: user.editorId, specialization: user.specialization });
       router.replace(user.role === "admin" ? "/(admin)" : "/(editor)");
     } catch (e: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

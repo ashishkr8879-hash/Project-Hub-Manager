@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { useEditorTheme } from "@/hooks/useEditorTheme";
 import { fetchNotifications, markNotificationsRead, type AppNotification } from "@/hooks/useApi";
 
 const ICON_MAP: Record<string, { icon: "folder-plus"|"upload"|"check-circle"|"x-circle"|"message-circle"|"edit-2"; bg: string; color: string }> = {
@@ -27,6 +28,7 @@ const ICON_MAP: Record<string, { icon: "folder-plus"|"upload"|"check-circle"|"x-
 export default function EditorNotificationsScreen() {
   const colors = useColors();
   const { currentUser } = useApp();
+  const theme = useEditorTheme(currentUser?.specialization);
   const insets = useSafeAreaInsets();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const queryClient = useQueryClient();

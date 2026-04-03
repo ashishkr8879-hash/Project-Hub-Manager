@@ -23,6 +23,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ChatModal } from "@/components/ChatModal";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { useEditorTheme } from "@/hooks/useEditorTheme";
 import {
   fetchEditorProjects,
   fetchEditorVideos,
@@ -41,6 +42,7 @@ type Tab = "active" | "rejected";
 export default function WorkScreen() {
   const colors = useColors();
   const { currentUser } = useApp();
+  const theme = useEditorTheme(currentUser?.specialization);
   const insets = useSafeAreaInsets();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const queryClient = useQueryClient();
@@ -144,7 +146,7 @@ export default function WorkScreen() {
 
         <View style={styles.progressRow}>
           <View style={[styles.progressBar, { backgroundColor: colors.muted }]}>
-            <View style={[styles.progressFill, { backgroundColor: isCompleted ? colors.success : colors.editorPrimary, width: `${Math.round(progress * 100)}%` as `${number}%` }]} />
+            <View style={[styles.progressFill, { backgroundColor: isCompleted ? colors.success : theme.primary, width: `${Math.round(progress * 100)}%` as `${number}%` }]} />
           </View>
           <Text style={[styles.progressCount, { color: colors.mutedForeground }]}>{item.completedDeliverables}/{item.totalDeliverables}</Text>
         </View>
@@ -177,9 +179,9 @@ export default function WorkScreen() {
             {item.status === "in_progress" && (
               <>
                 <TouchableOpacity onPress={() => handleAddDeliverable(item)} disabled={isUpdating}
-                  style={[styles.actionBtn, { backgroundColor: `${colors.editorPrimary}15`, borderColor: `${colors.editorPrimary}30`, flex: 1 }]}>
-                  {isUpdating ? <ActivityIndicator size="small" color={colors.editorPrimary} />
-                    : <><Feather name="check" size={14} color={colors.editorPrimary} /><Text style={[styles.actionText, { color: colors.editorPrimary }]}>Mark Done</Text></>}
+                  style={[styles.actionBtn, { backgroundColor: `${theme.primary}15`, borderColor: `${theme.primary}30`, flex: 1 }]}>
+                  {isUpdating ? <ActivityIndicator size="small" color={theme.primary} />
+                    : <><Feather name="check" size={14} color={theme.primary} /><Text style={[styles.actionText, { color: theme.primary }]}>Mark Done</Text></>}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setUploadModal(item)}
                   style={[styles.actionBtn, { backgroundColor: `${colors.success}15`, borderColor: `${colors.success}30` }]}>
@@ -193,11 +195,11 @@ export default function WorkScreen() {
               onPress={() => setChatProject(item)}
               style={[
                 styles.actionBtn,
-                { backgroundColor: item.revisionRequested ? "#fef3c7" : `${colors.editorPrimary}12`, borderColor: item.revisionRequested ? "#f59e0b" : `${colors.editorPrimary}30` },
+                { backgroundColor: item.revisionRequested ? "#fef3c7" : `${theme.primary}12`, borderColor: item.revisionRequested ? "#f59e0b" : `${theme.primary}30` },
               ]}
             >
-              <Feather name="message-circle" size={14} color={item.revisionRequested ? "#b45309" : colors.editorPrimary} />
-              <Text style={[styles.actionText, { color: item.revisionRequested ? "#b45309" : colors.editorPrimary }]}>
+              <Feather name="message-circle" size={14} color={item.revisionRequested ? "#b45309" : theme.primary} />
+              <Text style={[styles.actionText, { color: item.revisionRequested ? "#b45309" : theme.primary }]}>
                 {item.revisionRequested ? "Customise!" : "Chat"}
               </Text>
             </TouchableOpacity>
@@ -208,10 +210,10 @@ export default function WorkScreen() {
         {isCompleted && (
           <TouchableOpacity
             onPress={() => setChatProject(item)}
-            style={[styles.actionBtn, { backgroundColor: `${colors.editorPrimary}10`, borderColor: `${colors.editorPrimary}20`, alignSelf: "flex-start" }]}
+            style={[styles.actionBtn, { backgroundColor: `${theme.primary}10`, borderColor: `${theme.primary}20`, alignSelf: "flex-start" }]}
           >
-            <Feather name="message-circle" size={13} color={colors.editorPrimary} />
-            <Text style={[styles.actionText, { color: colors.editorPrimary, fontSize: 12 }]}>Chat</Text>
+            <Feather name="message-circle" size={13} color={theme.primary} />
+            <Text style={[styles.actionText, { color: theme.primary, fontSize: 12 }]}>Chat</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -253,9 +255,9 @@ export default function WorkScreen() {
           )}
           {project && (
             <TouchableOpacity onPress={() => setChatProject(project)}
-              style={[styles.actionBtn, { backgroundColor: `${colors.editorPrimary}12`, borderColor: `${colors.editorPrimary}25` }]}>
-              <Feather name="message-circle" size={14} color={colors.editorPrimary} />
-              <Text style={[styles.actionText, { color: colors.editorPrimary }]}>Chat</Text>
+              style={[styles.actionBtn, { backgroundColor: `${theme.primary}12`, borderColor: `${theme.primary}25` }]}>
+              <Feather name="message-circle" size={14} color={theme.primary} />
+              <Text style={[styles.actionText, { color: theme.primary }]}>Chat</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -271,8 +273,8 @@ export default function WorkScreen() {
           const active = tab === t;
           const count = t === "active" ? activeProjects.length : rejectedVideos.length;
           return (
-            <TouchableOpacity key={t} onPress={() => setTab(t)} style={[styles.tabBtn, active && { borderBottomColor: colors.editorPrimary, borderBottomWidth: 2 }]}>
-              <Text style={[styles.tabText, { color: active ? colors.editorPrimary : colors.mutedForeground }]}>
+            <TouchableOpacity key={t} onPress={() => setTab(t)} style={[styles.tabBtn, active && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}>
+              <Text style={[styles.tabText, { color: active ? theme.primary : colors.mutedForeground }]}>
                 {t === "active" ? "Active Work" : "Rejected Videos"}
               </Text>
               {count > 0 && (
@@ -286,7 +288,7 @@ export default function WorkScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.loader}><ActivityIndicator color={colors.editorPrimary} /></View>
+        <View style={styles.loader}><ActivityIndicator color={theme.primary} /></View>
       ) : tab === "active" ? (
         <FlatList
           data={activeProjects}
@@ -471,7 +473,7 @@ function UploadModal({
               const active = modalTab === t;
               return (
                 <TouchableOpacity key={t} onPress={() => setModalTab(t)}
-                  style={[styles.mTabBtn, active && { backgroundColor: colors.editorPrimary, borderRadius: 10 }]}>
+                  style={[styles.mTabBtn, active && { backgroundColor: theme.primary, borderRadius: 10 }]}>
                   <Feather
                     name={t === "upload" ? "upload" : "paperclip"}
                     size={13}
@@ -504,7 +506,7 @@ function UploadModal({
                   value={deliverableIndex} onChangeText={setDeliverableIndex} keyboardType="numeric" placeholder="1" placeholderTextColor={colors.mutedForeground} />
               </View>
               <TouchableOpacity onPress={handleSubmitVideo} disabled={uploading}
-                style={[styles.uploadBtn, { backgroundColor: uploading ? colors.muted : colors.editorPrimary }]}>
+                style={[styles.uploadBtn, { backgroundColor: uploading ? colors.muted : theme.primary }]}>
                 {uploading ? <ActivityIndicator color="#fff" />
                   : <><Feather name="upload" size={16} color="#fff" /><Text style={styles.uploadBtnText}>Submit to Admin</Text></>}
               </TouchableOpacity>
@@ -518,7 +520,7 @@ function UploadModal({
               {!showAddRef && (
                 <View style={styles.refBtnRow}>
                   <TouchableOpacity onPress={() => { setShowAddRef(true); setRefMode("file"); }}
-                    style={[styles.addRefBtn, { backgroundColor: colors.editorPrimary }]}>
+                    style={[styles.addRefBtn, { backgroundColor: theme.primary }]}>
                     <Feather name="upload" size={13} color="#fff" />
                     <Text style={styles.addRefBtnText}>Upload File</Text>
                   </TouchableOpacity>
@@ -544,8 +546,8 @@ function UploadModal({
 
                   {refMode === "file" && (
                     <TouchableOpacity onPress={handlePickRefFile}
-                      style={[styles.filePickBtn, { backgroundColor: refFile ? `${colors.editorPrimary}08` : colors.muted, borderColor: refFile ? colors.editorPrimary : colors.border }]}>
-                      <Feather name={refFile ? "check-circle" : "upload"} size={16} color={refFile ? colors.editorPrimary : colors.mutedForeground} />
+                      style={[styles.filePickBtn, { backgroundColor: refFile ? `${theme.primary}08` : colors.muted, borderColor: refFile ? theme.primary : colors.border }]}>
+                      <Feather name={refFile ? "check-circle" : "upload"} size={16} color={refFile ? theme.primary : colors.mutedForeground} />
                       <View style={{ flex: 1 }}>
                         {refFile
                           ? <><Text style={[styles.filePickName, { color: colors.foreground }]} numberOfLines={1}>{refFile.name}</Text><Text style={[styles.filePickSize, { color: colors.mutedForeground }]}>{refFile.size}</Text></>
@@ -566,7 +568,7 @@ function UploadModal({
                   <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
                     value={refNote} onChangeText={setRefNote} placeholder="Note for admin (optional)" placeholderTextColor={colors.mutedForeground} multiline />
                   <TouchableOpacity onPress={handleAddRef} disabled={addingRef}
-                    style={[styles.refSaveBtn, { backgroundColor: addingRef ? colors.muted : colors.editorPrimary }]}>
+                    style={[styles.refSaveBtn, { backgroundColor: addingRef ? colors.muted : theme.primary }]}>
                     {addingRef ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.refSaveBtnText}>Save Reference</Text>}
                   </TouchableOpacity>
                 </View>
@@ -574,7 +576,7 @@ function UploadModal({
 
               {/* Reference list */}
               {refsLoading ? (
-                <ActivityIndicator color={colors.editorPrimary} style={{ marginTop: 20 }} />
+                <ActivityIndicator color={theme.primary} style={{ marginTop: 20 }} />
               ) : references.length === 0 ? (
                 <View style={[styles.emptyRefs, { borderColor: colors.border }]}>
                   <Feather name="link-2" size={24} color={colors.mutedForeground} />
@@ -583,12 +585,12 @@ function UploadModal({
               ) : (
                 references.map((item) => (
                   <View key={item.id} style={[styles.refCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                    <View style={[styles.refIcon, { backgroundColor: item.fileName ? `${colors.editorPrimary}18` : `${colors.primary}18` }]}>
-                      <Feather name={item.fileName ? "file" : "link"} size={14} color={item.fileName ? colors.editorPrimary : colors.primary} />
+                    <View style={[styles.refIcon, { backgroundColor: item.fileName ? `${theme.primary}18` : `${colors.primary}18` }]}>
+                      <Feather name={item.fileName ? "file" : "link"} size={14} color={item.fileName ? theme.primary : colors.primary} />
                     </View>
                     <View style={styles.refContent}>
                       <Text style={[styles.refTitle, { color: colors.foreground }]}>{item.title}</Text>
-                      {item.fileName && <Text style={[styles.refUrl, { color: colors.editorPrimary }]} numberOfLines={1}>📎 {item.fileName}</Text>}
+                      {item.fileName && <Text style={[styles.refUrl, { color: theme.primary }]} numberOfLines={1}>📎 {item.fileName}</Text>}
                       {item.url && (
                         <TouchableOpacity onPress={() => Linking.openURL(item.url!).catch(() => {})}>
                           <Text style={[styles.refUrl, { color: colors.primary }]} numberOfLines={1}>{item.url}</Text>

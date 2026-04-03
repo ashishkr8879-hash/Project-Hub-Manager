@@ -151,7 +151,7 @@ router.post("/auth/login", (req, res) => {
     res.json({ id: ADMIN.id, name: ADMIN.name, role: ADMIN.role }); return;
   }
   const editor = editors.find((e) => (e.username === username || e.email.split("@")[0] === username) && e.password === password);
-  if (editor) { res.json({ id: editor.id, name: editor.name, role: "editor", editorId: editor.id }); return; }
+  if (editor) { res.json({ id: editor.id, name: editor.name, role: "editor", editorId: editor.id, specialization: editor.specialization }); return; }
   res.status(401).json({ error: "Invalid username or password" });
 });
 
@@ -280,6 +280,10 @@ router.get("/editors/:editorId/profile", (req, res) => {
       projects: projs.map(p => ({ ...p, companyRevenue: p.totalValue - p.modelCost })),
       dayRevenue: projs.reduce((s, p) => s + (p.totalValue - p.modelCost), 0),
     }));
+  const completedProjects = editorProjects.filter((p) => p.status === "completed");
+  const totalEarnings = completedProjects.reduce((s, p) => s + p.totalValue, 0);
+  const sortedProjects = [...editorProjects].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const recentProjects = sortedProjects.slice(0, 5);
   res.json({
     id: editor.id, name: editor.name, email: editor.email, phone: editor.phone,
     specialization: editor.specialization, joinedAt: editor.joinedAt,
@@ -287,7 +291,7 @@ router.get("/editors/:editorId/profile", (req, res) => {
     monthlySalary: editor.monthlySalary,
     stats: {
       totalProjects: editorProjects.length,
-      completedProjects:   editorProjects.filter((p) => p.status === "completed").length,
+      completedProjects:   completedProjects.length,
       inProgressProjects:  editorProjects.filter((p) => p.status === "in_progress").length,
       pendingProjects:     editorProjects.filter((p) => p.status === "pending").length,
       customisationProjects: editorProjects.filter((p) => p.revisionRequested).length,
@@ -295,11 +299,10 @@ router.get("/editors/:editorId/profile", (req, res) => {
       approvedVideos:      editorVideos.filter((v) => v.status === "approved").length,
       rejectedVideos:      editorVideos.filter((v) => v.status === "rejected").length,
       pendingReviewVideos: editorVideos.filter((v) => v.status === "pending_review").length,
-      totalRevenue, companyProfit,
+      totalRevenue, companyProfit, totalEarnings,
     },
-    allProjects: [...editorProjects]
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .map(p => ({ ...p, companyRevenue: p.totalValue - p.modelCost })),
+    recentProjects,
+    allProjects: sortedProjects.map(p => ({ ...p, companyRevenue: p.totalValue - p.modelCost })),
     projectsByDate,
   });
 });

@@ -17,11 +17,13 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { MonthCalendar } from "@/components/MonthCalendar";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+import { useEditorTheme } from "@/hooks/useEditorTheme";
 import { fetchEditorProjects, fetchCalendar } from "@/hooks/useApi";
 
 export default function EditorDashboard() {
   const colors = useColors();
   const { currentUser } = useApp();
+  const theme = useEditorTheme(currentUser?.specialization);
   const insets = useSafeAreaInsets();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const editorId = currentUser?.editorId ?? currentUser?.id ?? "";
@@ -60,26 +62,32 @@ export default function EditorDashboard() {
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 100 }]}
       refreshControl={
-        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.editorPrimary} />
+        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={theme.primary} />
       }
     >
       <View style={styles.topRow}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={[styles.greeting, { color: colors.mutedForeground }]}>Welcome back</Text>
           <Text style={[styles.name, { color: colors.foreground }]}>{currentUser?.name}</Text>
+          {currentUser?.specialization && (
+            <View style={[styles.specBadge, { backgroundColor: theme.badgeBg }]}>
+              <Feather name={theme.icon as never} size={11} color={theme.badgeText} />
+              <Text style={[styles.specBadgeText, { color: theme.badgeText }]}>{theme.label}</Text>
+            </View>
+          )}
         </View>
         <NotificationBell targetRoute="/(editor)/notifications" />
       </View>
 
       {isLoading ? (
         <View style={styles.loader}>
-          <ActivityIndicator color={colors.editorPrimary} />
+          <ActivityIndicator color={theme.primary} />
         </View>
       ) : (
         <>
           {/* Stats */}
           <View style={styles.statsRow}>
-            <StatCard label="Assigned"     value={String(projects.length)}          icon="folder"      color={colors.editorPrimary} />
+            <StatCard label="Assigned"     value={String(projects.length)}          icon="folder"      color={theme.primary} />
             <StatCard label="Pending Work" value={String(totalPendingDeliverables)} icon="clock"       color={colors.warning} />
           </View>
           <View style={styles.statsRow}>
@@ -112,10 +120,10 @@ export default function EditorDashboard() {
           <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8 }]}>My Project Calendar</Text>
           {calLoading ? (
             <View style={[styles.calLoader, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <ActivityIndicator color={colors.editorPrimary} />
+              <ActivityIndicator color={theme.primary} />
             </View>
           ) : (
-            <MonthCalendar calendarData={calendarData} accentColor={colors.editorPrimary} />
+            <MonthCalendar calendarData={calendarData} accentColor={theme.primary} />
           )}
 
           {/* In Progress */}
@@ -153,6 +161,8 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 },
   greeting: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 2 },
   name: { fontSize: 24, fontFamily: "Inter_700Bold" },
+  specBadge: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 5 },
+  specBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   loader: { flex: 1, alignItems: "center", paddingTop: 60 },
   statsRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
   customiseAlert: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 12 },

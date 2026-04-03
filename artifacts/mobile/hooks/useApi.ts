@@ -113,7 +113,7 @@ export interface EditorAnalytics {
 }
 
 export interface LoginPayload { username: string; password: string; }
-export interface LoginResponse { id: string; name: string; role: "admin" | "editor"; editorId?: string; }
+export interface LoginResponse { id: string; name: string; role: "admin" | "editor"; editorId?: string; specialization?: string; }
 
 // ─── Fetch helper ─────────────────────────────────────────────────────────────
 

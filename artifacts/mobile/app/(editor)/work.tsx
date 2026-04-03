@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -6,8 +7,10 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Linking,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -25,8 +28,12 @@ import {
   fetchEditorVideos,
   submitVideo,
   updateProjectStatus,
+  fetchProjectReferences,
+  addReference,
+  deleteReference,
   type Project,
   type VideoSubmission,
+  type ProjectReference,
 } from "@/hooks/useApi";
 
 type Tab = "active" | "rejected";
@@ -353,16 +360,35 @@ function UploadModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  type ModalTab = "upload" | "references";
+  const [modalTab, setModalTab] = useState<ModalTab>("upload");
+
+  // Upload state
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [deliverableIndex, setDeliverableIndex] = useState("1");
-  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  // Reference state
+  const queryClient = useQueryClient();
+  const [showAddRef, setShowAddRef] = useState(false);
+  const [refMode, setRefMode] = useState<"file" | "link" | null>(null);
+  const [refTitle, setRefTitle] = useState("");
+  const [refUrl, setRefUrl] = useState("");
+  const [refNote, setRefNote] = useState("");
+  const [refFile, setRefFile] = useState<{ name: string; size: string; type: string } | null>(null);
+  const [addingRef, setAddingRef] = useState(false);
+
+  const { data: references = [], isLoading: refsLoading, refetch: refetchRefs } = useQuery({
+    queryKey: ["project-refs", project.id],
+    queryFn: () => fetchProjectReferences(project.id),
+  });
 
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  async function handleSubmit() {
+  async function handleSubmitVideo() {
     if (!fileName.trim()) { Alert.alert("Error", "Please enter the file name"); return; }
-    setLoading(true);
+    setUploading(true);
     try {
       await submitVideo(project.id, {
         editorId, fileName: fileName.trim(),
@@ -372,7 +398,54 @@ function UploadModal({
       onSuccess();
     } catch (e: unknown) {
       Alert.alert("Error", e instanceof Error ? e.message : "Upload failed");
-    } finally { setLoading(false); }
+    } finally { setUploading(false); }
+  }
+
+  async function handlePickRefFile() {
+    const res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: false });
+    if (!res.canceled && res.assets[0]) {
+      const asset = res.assets[0];
+      const sizeKB = asset.size ? `${(asset.size / 1024).toFixed(0)} KB` : "Unknown";
+      setRefFile({ name: asset.name, size: sizeKB, type: asset.mimeType ?? "application/octet-stream" });
+    }
+  }
+
+  async function handleAddRef() {
+    if (!refTitle.trim()) { Alert.alert("Error", "Please enter a title"); return; }
+    if (refMode === "link" && !refUrl.trim()) { Alert.alert("Error", "Please enter a URL"); return; }
+    setAddingRef(true);
+    try {
+      await addReference(project.id, {
+        title: refTitle.trim(),
+        url: refMode === "link" ? refUrl.trim() : undefined,
+        note: refNote.trim(),
+        fileName: refMode === "file" ? (refFile?.name ?? "Uploaded File") : undefined,
+        fileType: refMode === "file" ? (refFile?.type ?? "file") : undefined,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowAddRef(false); setRefMode(null);
+      setRefTitle(""); setRefUrl(""); setRefNote(""); setRefFile(null);
+      refetchRefs();
+      queryClient.invalidateQueries({ queryKey: ["project-refs"] });
+    } catch (e) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Failed to add reference");
+    } finally { setAddingRef(false); }
+  }
+
+  async function handleDeleteRef(ref: ProjectReference) {
+    Alert.alert("Delete Reference", `Remove "${ref.title}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete", style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteReference(ref.id);
+            refetchRefs();
+            queryClient.invalidateQueries({ queryKey: ["project-refs"] });
+          } catch { Alert.alert("Error", "Could not remove reference"); }
+        },
+      },
+    ]);
   }
 
   return (
@@ -380,35 +453,158 @@ function UploadModal({
       <View style={styles.modalOverlay}>
         <View style={[styles.modalSheet, { backgroundColor: colors.card, paddingBottom: bottomPad + 16 }]}>
           <View style={styles.modalHandle} />
+
+          {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Upload Video</Text>
-            <TouchableOpacity onPress={onClose}><Feather name="x" size={20} color={colors.mutedForeground} /></TouchableOpacity>
-          </View>
-          <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>{project.projectName}</Text>
-
-          <View style={styles.modalFields}>
-            <View style={styles.field}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>File Name</Text>
-              <TextInput style={[styles.modalInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                value={fileName} onChangeText={setFileName} placeholder="e.g. brand_video_v2.mp4" placeholderTextColor={colors.mutedForeground} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]} numberOfLines={1}>{project.projectName}</Text>
+              <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>{project.clientName}</Text>
             </View>
-            <View style={styles.field}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>File Size</Text>
-              <TextInput style={[styles.modalInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                value={fileSize} onChangeText={setFileSize} placeholder="e.g. 250 MB" placeholderTextColor={colors.mutedForeground} />
-            </View>
-            <View style={styles.field}>
-              <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Deliverable #</Text>
-              <TextInput style={[styles.modalInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                value={deliverableIndex} onChangeText={setDeliverableIndex} keyboardType="numeric" placeholder="1" placeholderTextColor={colors.mutedForeground} />
-            </View>
+            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+              <Feather name="x" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={handleSubmit} disabled={loading}
-            style={[styles.uploadBtn, { backgroundColor: loading ? colors.muted : colors.editorPrimary }]}>
-            {loading ? <ActivityIndicator color="#fff" />
-              : <><Feather name="upload" size={16} color="#fff" /><Text style={styles.uploadBtnText}>Submit to Admin</Text></>}
-          </TouchableOpacity>
+          {/* Tab bar */}
+          <View style={[styles.mTabBar, { borderColor: colors.border }]}>
+            {(["upload", "references"] as ModalTab[]).map((t) => {
+              const active = modalTab === t;
+              return (
+                <TouchableOpacity key={t} onPress={() => setModalTab(t)}
+                  style={[styles.mTabBtn, active && { backgroundColor: colors.editorPrimary, borderRadius: 10 }]}>
+                  <Feather
+                    name={t === "upload" ? "upload" : "paperclip"}
+                    size={13}
+                    color={active ? "#fff" : colors.mutedForeground}
+                  />
+                  <Text style={[styles.mTabText, { color: active ? "#fff" : colors.mutedForeground }]}>
+                    {t === "upload" ? "Upload Video" : `References (${references.length})`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Upload tab */}
+          {modalTab === "upload" && (
+            <View style={styles.modalFields}>
+              <View style={styles.field}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>File Name</Text>
+                <TextInput style={[styles.modalInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                  value={fileName} onChangeText={setFileName} placeholder="e.g. brand_video_v2.mp4" placeholderTextColor={colors.mutedForeground} />
+              </View>
+              <View style={styles.field}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>File Size</Text>
+                <TextInput style={[styles.modalInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                  value={fileSize} onChangeText={setFileSize} placeholder="e.g. 250 MB" placeholderTextColor={colors.mutedForeground} />
+              </View>
+              <View style={styles.field}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Deliverable #</Text>
+                <TextInput style={[styles.modalInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                  value={deliverableIndex} onChangeText={setDeliverableIndex} keyboardType="numeric" placeholder="1" placeholderTextColor={colors.mutedForeground} />
+              </View>
+              <TouchableOpacity onPress={handleSubmitVideo} disabled={uploading}
+                style={[styles.uploadBtn, { backgroundColor: uploading ? colors.muted : colors.editorPrimary }]}>
+                {uploading ? <ActivityIndicator color="#fff" />
+                  : <><Feather name="upload" size={16} color="#fff" /><Text style={styles.uploadBtnText}>Submit to Admin</Text></>}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* References tab */}
+          {modalTab === "references" && (
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              {/* Add buttons row */}
+              {!showAddRef && (
+                <View style={styles.refBtnRow}>
+                  <TouchableOpacity onPress={() => { setShowAddRef(true); setRefMode("file"); }}
+                    style={[styles.addRefBtn, { backgroundColor: colors.editorPrimary }]}>
+                    <Feather name="upload" size={13} color="#fff" />
+                    <Text style={styles.addRefBtnText}>Upload File</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { setShowAddRef(true); setRefMode("link"); }}
+                    style={[styles.addRefBtn, { backgroundColor: colors.primary }]}>
+                    <Feather name="link" size={13} color="#fff" />
+                    <Text style={styles.addRefBtnText}>Add Link</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Add reference form */}
+              {showAddRef && refMode && (
+                <View style={[styles.addRefForm, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={[styles.refFormHeader, { color: colors.foreground }]}>
+                      {refMode === "file" ? "📎 Upload File Reference" : "🔗 Add Link Reference"}
+                    </Text>
+                    <TouchableOpacity onPress={() => { setShowAddRef(false); setRefMode(null); setRefTitle(""); setRefUrl(""); setRefNote(""); setRefFile(null); }}>
+                      <Feather name="x" size={16} color={colors.mutedForeground} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {refMode === "file" && (
+                    <TouchableOpacity onPress={handlePickRefFile}
+                      style={[styles.filePickBtn, { backgroundColor: refFile ? `${colors.editorPrimary}08` : colors.muted, borderColor: refFile ? colors.editorPrimary : colors.border }]}>
+                      <Feather name={refFile ? "check-circle" : "upload"} size={16} color={refFile ? colors.editorPrimary : colors.mutedForeground} />
+                      <View style={{ flex: 1 }}>
+                        {refFile
+                          ? <><Text style={[styles.filePickName, { color: colors.foreground }]} numberOfLines={1}>{refFile.name}</Text><Text style={[styles.filePickSize, { color: colors.mutedForeground }]}>{refFile.size}</Text></>
+                          : <Text style={[styles.filePickPlaceholder, { color: colors.mutedForeground }]}>Tap to pick a file</Text>}
+                      </View>
+                      {refFile && <TouchableOpacity onPress={() => setRefFile(null)}><Feather name="x" size={14} color={colors.mutedForeground} /></TouchableOpacity>}
+                    </TouchableOpacity>
+                  )}
+
+                  {refMode === "link" && (
+                    <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                      value={refUrl} onChangeText={setRefUrl} placeholder="https://drive.google.com/..." placeholderTextColor={colors.mutedForeground}
+                      autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+                  )}
+
+                  <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                    value={refTitle} onChangeText={setRefTitle} placeholder="Title *" placeholderTextColor={colors.mutedForeground} />
+                  <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                    value={refNote} onChangeText={setRefNote} placeholder="Note for admin (optional)" placeholderTextColor={colors.mutedForeground} multiline />
+                  <TouchableOpacity onPress={handleAddRef} disabled={addingRef}
+                    style={[styles.refSaveBtn, { backgroundColor: addingRef ? colors.muted : colors.editorPrimary }]}>
+                    {addingRef ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.refSaveBtnText}>Save Reference</Text>}
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Reference list */}
+              {refsLoading ? (
+                <ActivityIndicator color={colors.editorPrimary} style={{ marginTop: 20 }} />
+              ) : references.length === 0 ? (
+                <View style={[styles.emptyRefs, { borderColor: colors.border }]}>
+                  <Feather name="link-2" size={24} color={colors.mutedForeground} />
+                  <Text style={[styles.emptyRefsText, { color: colors.mutedForeground }]}>No references yet</Text>
+                </View>
+              ) : (
+                references.map((item) => (
+                  <View key={item.id} style={[styles.refCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                    <View style={[styles.refIcon, { backgroundColor: item.fileName ? `${colors.editorPrimary}18` : `${colors.primary}18` }]}>
+                      <Feather name={item.fileName ? "file" : "link"} size={14} color={item.fileName ? colors.editorPrimary : colors.primary} />
+                    </View>
+                    <View style={styles.refContent}>
+                      <Text style={[styles.refTitle, { color: colors.foreground }]}>{item.title}</Text>
+                      {item.fileName && <Text style={[styles.refUrl, { color: colors.editorPrimary }]} numberOfLines={1}>📎 {item.fileName}</Text>}
+                      {item.url && (
+                        <TouchableOpacity onPress={() => Linking.openURL(item.url!).catch(() => {})}>
+                          <Text style={[styles.refUrl, { color: colors.primary }]} numberOfLines={1}>{item.url}</Text>
+                        </TouchableOpacity>
+                      )}
+                      {item.note && <Text style={[styles.refNote, { color: colors.mutedForeground }]}>{item.note}</Text>}
+                    </View>
+                    <TouchableOpacity onPress={() => handleDeleteRef(item)} style={{ padding: 4 }}>
+                      <Feather name="trash-2" size={15} color={colors.destructive} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+              <View style={{ height: 20 }} />
+            </ScrollView>
+          )}
         </View>
       </View>
     </Modal>
@@ -447,15 +643,40 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", padding: 40, borderRadius: 16, borderWidth: 1, gap: 8 },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
-  modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, gap: 16 },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#e2e8f0", alignSelf: "center", marginBottom: 8 },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  modalSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: -8 },
+  modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 14, maxHeight: "90%" },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#e2e8f0", alignSelf: "center", marginBottom: 4 },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  modalTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  modalSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   modalFields: { gap: 12 },
   field: { gap: 6 },
   fieldLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
   modalInput: { padding: 12, borderRadius: 12, borderWidth: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   uploadBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 14, borderRadius: 14, gap: 8, marginTop: 4 },
   uploadBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  // Modal tabs
+  mTabBar: { flexDirection: "row", borderWidth: 1, borderRadius: 12, padding: 4, gap: 4 },
+  mTabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8, paddingHorizontal: 4 },
+  mTabText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  // References
+  refBtnRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  addRefBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, gap: 6 },
+  addRefBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  addRefForm: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10, marginBottom: 12 },
+  refFormHeader: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  filePickBtn: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12, padding: 12, gap: 10 },
+  filePickName: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  filePickSize: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  filePickPlaceholder: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  refInput: { padding: 12, borderRadius: 12, borderWidth: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  refSaveBtn: { alignItems: "center", padding: 12, borderRadius: 12 },
+  refSaveBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  emptyRefs: { alignItems: "center", padding: 32, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", gap: 8, marginTop: 8 },
+  emptyRefsText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  refCard: { flexDirection: "row", alignItems: "flex-start", borderRadius: 12, borderWidth: 1, padding: 12, gap: 10, marginBottom: 8 },
+  refIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  refContent: { flex: 1, gap: 2 },
+  refTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  refUrl: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  refNote: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
 });

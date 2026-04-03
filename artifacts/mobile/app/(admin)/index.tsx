@@ -18,8 +18,69 @@ import { ProjectCard } from "@/components/ProjectCard";
 import { NotificationBell } from "@/components/NotificationBell";
 import { MonthCalendar } from "@/components/MonthCalendar";
 import { useColors } from "@/hooks/useColors";
-import { fetchDashboardStats, fetchProjects, fetchCalendar } from "@/hooks/useApi";
+import { fetchDashboardStats, fetchProjects, fetchCalendar, fetchEditors, type Editor } from "@/hooks/useApi";
 
+// ── Team stat card with editor avatar bubbles ─────────────────────────────────
+function TeamStatCard({ editors, color, colors }: { editors: Editor[]; color: string; colors: ReturnType<typeof useColors> }) {
+  const AVATAR_SIZE = 28;
+  const OVERLAP = 10;
+  const MAX_SHOWN = 5;
+  const shown = editors.slice(0, MAX_SHOWN);
+  const extra = editors.length - MAX_SHOWN;
+
+  return (
+    <View style={[tStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[tStyles.iconWrap, { backgroundColor: `${color}18` }]}>
+        <Feather name="users" size={20} color={color} />
+      </View>
+      <Text style={[tStyles.value, { color: colors.foreground }]}>{editors.length}</Text>
+      <Text style={[tStyles.label, { color: colors.mutedForeground }]}>Total Editors</Text>
+
+      {/* Avatar bubbles */}
+      {editors.length > 0 && (
+        <View style={[tStyles.avatarRow, { width: shown.length * (AVATAR_SIZE - OVERLAP) + OVERLAP + (extra > 0 ? AVATAR_SIZE : 0) }]}>
+          {shown.map((e, idx) => {
+            const initials = e.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+            const hue = (e.id.charCodeAt(1) * 47) % 360;
+            return (
+              <View key={e.id}
+                style={[tStyles.avatar, {
+                  width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2,
+                  backgroundColor: `hsl(${hue},60%,55%)`,
+                  left: idx * (AVATAR_SIZE - OVERLAP),
+                  borderColor: colors.card,
+                }]}>
+                <Text style={[tStyles.avatarText, { fontSize: AVATAR_SIZE * 0.33 }]}>{initials}</Text>
+              </View>
+            );
+          })}
+          {extra > 0 && (
+            <View style={[tStyles.avatar, {
+              width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2,
+              backgroundColor: `${color}30`,
+              left: shown.length * (AVATAR_SIZE - OVERLAP),
+              borderColor: colors.card,
+            }]}>
+              <Text style={[tStyles.avatarText, { fontSize: AVATAR_SIZE * 0.3, color }]}>+{extra}</Text>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const tStyles = StyleSheet.create({
+  card: { flex: 1, borderRadius: 16, borderWidth: 1, padding: 16, gap: 6, alignItems: "flex-start", minHeight: 120 },
+  iconWrap: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  value: { fontSize: 22, fontFamily: "Inter_700Bold" },
+  label: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  avatarRow: { position: "relative", height: 30, marginTop: 4 },
+  avatar: { position: "absolute", alignItems: "center", justifyContent: "center", borderWidth: 2 },
+  avatarText: { color: "#fff", fontFamily: "Inter_700Bold" },
+});
+
+// ── Main dashboard ─────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -44,10 +105,15 @@ export default function AdminDashboard() {
     queryFn: () => fetchCalendar(currentMonth),
   });
 
+  const { data: editors = [], refetch: refetchEditors } = useQuery({
+    queryKey: ["editors"],
+    queryFn: fetchEditors,
+  });
+
   const isLoading = statsLoading || projectsLoading;
 
   async function handleRefresh() {
-    await Promise.all([refetchStats(), refetchProjects(), refetchCal()]);
+    await Promise.all([refetchStats(), refetchProjects(), refetchCal(), refetchEditors()]);
   }
 
   const recentProjects = (projects ?? []).slice(-4).reverse();
@@ -73,7 +139,7 @@ export default function AdminDashboard() {
           {/* Stats */}
           <View style={styles.statsRow}>
             <StatCard label="Total Projects" value={String(stats?.totalProjects ?? 0)} icon="folder" color={colors.adminPrimary} />
-            <StatCard label="Total Editors"  value={String(stats?.totalEditors ?? 0)}  icon="users"  color={colors.editorPrimary} />
+            <TeamStatCard editors={editors} color={colors.editorPrimary} colors={colors} />
           </View>
           <View style={styles.statsRow}>
             <StatCard label="Active"          value={String(stats?.activeProjects ?? 0)} icon="activity"    color={colors.warning} />

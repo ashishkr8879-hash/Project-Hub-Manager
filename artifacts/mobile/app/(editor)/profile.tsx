@@ -1,8 +1,11 @@
 import { Feather } from "@expo/vector-icons";
-import React from "react";
+import * as ImagePicker from "expo-image-picker";
+import * as Haptics from "expo-haptics";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Linking,
   Platform,
   RefreshControl,
@@ -12,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -25,12 +29,21 @@ export default function EditorProfileScreen() {
   const insets = useSafeAreaInsets();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const editorId = currentUser?.editorId ?? currentUser?.id ?? "";
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   const { data: profile, isLoading, refetch } = useQuery({
     queryKey: ["editor-profile", editorId],
     queryFn: () => fetchEditorProfile(editorId),
     enabled: !!editorId,
   });
+
+  // Load saved profile image
+  useEffect(() => {
+    if (!editorId) return;
+    AsyncStorage.getItem(`profile_image_${editorId}`).then((uri) => {
+      if (uri) setProfileImage(uri);
+    });
+  }, [editorId]);
 
   const ADMIN_PHONE = "+91 98765 00001";
 
@@ -45,6 +58,58 @@ export default function EditorProfileScreen() {
     Alert.alert("Call Admin", `Call Divayshakati Admin at ${ADMIN_PHONE}?`, [
       { text: "Cancel", style: "cancel" },
       { text: "Call", onPress: () => Linking.openURL(`tel:${ADMIN_PHONE}`) },
+    ]);
+  }
+
+  async function handlePickImage() {
+    Alert.alert("Change Profile Photo", "Choose an option", [
+      {
+        text: "Camera",
+        onPress: async () => {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) { Alert.alert("Permission denied", "Camera access is needed."); return; }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ["images"],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+          });
+          if (!result.canceled && result.assets[0]) {
+            const uri = result.assets[0].uri;
+            setProfileImage(uri);
+            await AsyncStorage.setItem(`profile_image_${editorId}`, uri);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        },
+      },
+      {
+        text: "Photo Library",
+        onPress: async () => {
+          const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (!perm.granted) { Alert.alert("Permission denied", "Photo library access is needed."); return; }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ["images"],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+          });
+          if (!result.canceled && result.assets[0]) {
+            const uri = result.assets[0].uri;
+            setProfileImage(uri);
+            await AsyncStorage.setItem(`profile_image_${editorId}`, uri);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+        },
+      },
+      {
+        text: "Remove Photo",
+        style: "destructive",
+        onPress: async () => {
+          setProfileImage(null);
+          await AsyncStorage.removeItem(`profile_image_${editorId}`);
+        },
+      },
+      { text: "Cancel", style: "cancel" },
     ]);
   }
 
@@ -63,11 +128,26 @@ export default function EditorProfileScreen() {
         <>
           {/* Header */}
           <View style={[styles.headerCard, { backgroundColor: colors.editorPrimary }]}>
-            <View style={styles.avatarRing}>
-              <View style={[styles.avatar, { backgroundColor: "#fff" }]}>
-                <Text style={[styles.avatarText, { color: colors.editorPrimary }]}>{initials}</Text>
+            {/* Profile image with edit button */}
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatarRing}>
+                {profileImage ? (
+                  <Image source={{ uri: profileImage }} style={styles.avatarImg} />
+                ) : (
+                  <View style={[styles.avatar, { backgroundColor: "#fff" }]}>
+                    <Text style={[styles.avatarText, { color: colors.editorPrimary }]}>{initials}</Text>
+                  </View>
+                )}
               </View>
+              <TouchableOpacity
+                onPress={handlePickImage}
+                style={[styles.editPhotoBtn, { backgroundColor: "#fff", borderColor: colors.editorPrimary }]}
+                activeOpacity={0.8}
+              >
+                <Feather name="camera" size={13} color={colors.editorPrimary} />
+              </TouchableOpacity>
             </View>
+
             <Text style={styles.profileName}>{profile.name}</Text>
             <Text style={styles.profileSpec}>{profile.specialization}</Text>
             <View style={styles.headerMeta}>
@@ -89,14 +169,14 @@ export default function EditorProfileScreen() {
           {/* Stats grid */}
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Statistics</Text>
           <View style={styles.statsGrid}>
-            <StatBox label="Total Projects"  value={String(profile.stats.totalProjects)}     color={colors.editorPrimary} colors={colors} />
-            <StatBox label="Completed"        value={String(profile.stats.completedProjects)}  color={colors.success}       colors={colors} />
-            <StatBox label="In Progress"      value={String(profile.stats.inProgressProjects)} color={colors.primary}       colors={colors} />
-            <StatBox label="Pending"          value={String(profile.stats.pendingProjects)}    color={colors.warning}       colors={colors} />
-            <StatBox label="Videos Uploaded"  value={String(profile.stats.totalVideosUploaded)} color={colors.editorPrimary} colors={colors} />
-            <StatBox label="Approved"         value={String(profile.stats.approvedVideos)}    color={colors.success}       colors={colors} />
-            <StatBox label="Rejected"         value={String(profile.stats.rejectedVideos)}    color={colors.destructive}   colors={colors} />
-            <StatBox label="In Review"        value={String(profile.stats.pendingReviewVideos)} color={colors.warning}     colors={colors} />
+            <StatBox label="Total Projects"   value={String(profile.stats.totalProjects)}      color={colors.editorPrimary} colors={colors} />
+            <StatBox label="Completed"         value={String(profile.stats.completedProjects)}   color={colors.success}       colors={colors} />
+            <StatBox label="In Progress"       value={String(profile.stats.inProgressProjects)}  color={colors.primary}       colors={colors} />
+            <StatBox label="Pending"           value={String(profile.stats.pendingProjects)}     color={colors.warning}       colors={colors} />
+            <StatBox label="Videos Uploaded"   value={String(profile.stats.totalVideosUploaded)} color={colors.editorPrimary} colors={colors} />
+            <StatBox label="Approved"          value={String(profile.stats.approvedVideos)}     color={colors.success}       colors={colors} />
+            <StatBox label="Rejected"          value={String(profile.stats.rejectedVideos)}     color={colors.destructive}   colors={colors} />
+            <StatBox label="In Review"         value={String(profile.stats.pendingReviewVideos)} color={colors.warning}      colors={colors} />
           </View>
 
           {/* Earnings */}
@@ -137,19 +217,19 @@ export default function EditorProfileScreen() {
           {/* Call Admin */}
           <TouchableOpacity
             onPress={handleCallAdmin}
-            style={[styles.logoutBtn, { backgroundColor: "#dcfce7", borderColor: "#86efac", borderWidth: 1 }]}
+            style={[styles.actionBtn, { backgroundColor: "#dcfce7", borderColor: "#86efac", borderWidth: 1 }]}
           >
             <Feather name="phone-call" size={16} color="#166534" />
-            <Text style={[styles.logoutText, { color: "#166534" }]}>Call Admin (Divayshakati)</Text>
+            <Text style={[styles.actionBtnText, { color: "#166534" }]}>Call Admin (Divayshakati)</Text>
           </TouchableOpacity>
 
           {/* Logout */}
           <TouchableOpacity
             onPress={handleLogout}
-            style={[styles.logoutBtn, { backgroundColor: "#fee2e2", borderColor: "#fecaca" }]}
+            style={[styles.actionBtn, { backgroundColor: "#fee2e2", borderColor: "#fecaca", borderWidth: 1 }]}
           >
             <Feather name="log-out" size={16} color={colors.destructive} />
-            <Text style={[styles.logoutText, { color: colors.destructive }]}>Sign Out</Text>
+            <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Sign Out</Text>
           </TouchableOpacity>
         </>
       ) : null}
@@ -171,9 +251,12 @@ const styles = StyleSheet.create({
   content: { padding: 20, gap: 16 },
   loader: { flex: 1, alignItems: "center", paddingTop: 60 },
   headerCard: { borderRadius: 20, padding: 24, alignItems: "center", gap: 8 },
-  avatarRing: { width: 88, height: 88, borderRadius: 44, borderWidth: 3, borderColor: "rgba(255,255,255,0.4)", alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  avatar: { width: 76, height: 76, borderRadius: 38, alignItems: "center", justifyContent: "center" },
+  avatarWrapper: { position: "relative", marginBottom: 4 },
+  avatarRing: { width: 92, height: 92, borderRadius: 46, borderWidth: 3, borderColor: "rgba(255,255,255,0.4)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  avatarImg: { width: 86, height: 86, borderRadius: 43 },
+  avatar: { width: 86, height: 86, borderRadius: 43, alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 28, fontFamily: "Inter_700Bold" },
+  editPhotoBtn: { position: "absolute", bottom: 0, right: -4, width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 2 },
   profileName: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#fff" },
   profileSpec: { fontSize: 14, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.8)" },
   headerMeta: { marginTop: 8, gap: 4, width: "100%", alignItems: "center" },
@@ -195,6 +278,6 @@ const styles = StyleSheet.create({
   projectRowMeta: { flexDirection: "row", gap: 8, marginTop: 2 },
   projectRowValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   projectRowDeliverable: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  logoutBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 14, borderRadius: 14, borderWidth: 1, gap: 8 },
-  logoutText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 14, borderRadius: 14, gap: 8 },
+  actionBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });

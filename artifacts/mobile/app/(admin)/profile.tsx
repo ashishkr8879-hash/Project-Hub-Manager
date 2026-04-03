@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Linking,
   Modal,
   Platform,
@@ -31,6 +32,7 @@ import {
   type Editor,
 } from "@/hooks/useApi";
 
+const LOGO = require("../../assets/images/divay-logo.png");
 const SPECIALIZATIONS = ["Video Editor", "Graphic Designer", "Ads Setup", "Website Development", "Social Media Manager"];
 
 export default function AdminProfileScreen() {
@@ -173,10 +175,9 @@ export default function AdminProfileScreen() {
           <>
             {/* Profile header */}
             <View style={[styles.headerCard, { backgroundColor: colors.adminPrimary }]}>
-              <View style={styles.avatarRing}>
-                <View style={[styles.avatar, { backgroundColor: "#fff" }]}>
-                  <Text style={[styles.avatarText, { color: colors.adminPrimary }]}>{initials}</Text>
-                </View>
+              {/* Logo image */}
+              <View style={styles.logoRing}>
+                <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
               </View>
               <Text style={styles.profileName}>{profile.name}</Text>
               <Text style={styles.profileBiz}>{profile.businessName}</Text>
@@ -601,9 +602,8 @@ function MInput({ label, value, onChange, placeholder, colors, kb }: {
 const styles = StyleSheet.create({
   loader: { flex: 1, alignItems: "center", paddingTop: 60 },
   headerCard: { borderRadius: 20, padding: 24, alignItems: "center", gap: 6, margin: 16 },
-  avatarRing: { width: 84, height: 84, borderRadius: 42, borderWidth: 3, borderColor: "rgba(255,255,255,0.4)", alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontSize: 26, fontFamily: "Inter_700Bold" },
+  logoRing: { width: 110, height: 110, borderRadius: 55, borderWidth: 3, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)", marginBottom: 4, overflow: "hidden" },
+  logoImg: { width: 100, height: 100 },
   profileName: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
   profileBiz: { fontSize: 13, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.8)" },
   headerMeta: { marginTop: 6, gap: 4, alignItems: "center" },

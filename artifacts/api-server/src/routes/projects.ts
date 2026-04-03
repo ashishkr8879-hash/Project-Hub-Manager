@@ -68,8 +68,8 @@ interface Notification {
 
 const ADMIN = {
   username: "admin", password: "admin123", id: "admin",
-  name: "Divyashakti Admin", businessName: "Divyashakti Productions",
-  email: "admin@divyashakti.com", phone: "+91 98765 00001", role: "admin" as const,
+  name: "Divayshakati Admin", businessName: "Divayshakati Productions",
+  email: "admin@divayshakati.com", phone: "+91 98765 00001", role: "admin" as const,
 };
 
 let editorIdCounter = 5;

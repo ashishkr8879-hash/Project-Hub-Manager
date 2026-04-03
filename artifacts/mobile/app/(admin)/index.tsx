@@ -34,7 +34,7 @@ function TeamStatCard({ editors, color, colors }: { editors: Editor[]; color: st
         <Feather name="users" size={20} color={color} />
       </View>
       <Text style={[tStyles.value, { color: colors.foreground }]}>{editors.length}</Text>
-      <Text style={[tStyles.label, { color: colors.mutedForeground }]}>Total Editors</Text>
+      <Text style={[tStyles.label, { color: colors.mutedForeground }]}>Total Team</Text>
 
       {/* Avatar bubbles */}
       {editors.length > 0 && (

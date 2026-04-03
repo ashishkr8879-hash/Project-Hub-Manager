@@ -235,16 +235,8 @@ export default function EditorProfileScreen() {
   const ADMIN_PHONE = "+91 98765 00001";
 
   function handleLogout() {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out", style: "destructive",
-        onPress: () => {
-          setCurrentUser(null);
-          router.replace("/login");
-        },
-      },
-    ]);
+    setCurrentUser(null);
+    router.replace("/login");
   }
 
   function handleCallAdmin() {

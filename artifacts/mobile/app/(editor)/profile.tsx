@@ -344,7 +344,7 @@ export default function EditorProfileScreen() {
                 </View>
                 <View style={styles.metaItem}>
                   <Feather name="calendar" size={13} color="rgba(255,255,255,0.8)" />
-                  <Text style={styles.metaItemText}>Joined {new Date(profile.joinedAt).toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</Text>
+                  <Text style={styles.metaItemText}>Joined {profile.joinedAt ? new Date(profile.joinedAt).toLocaleDateString("en-IN", { month: "long", year: "numeric" }) : "—"}</Text>
                 </View>
               </View>
             </View>
@@ -352,14 +352,14 @@ export default function EditorProfileScreen() {
             {/* ── Stats ──────────────────────────────────────────────────── */}
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>My Statistics</Text>
             <View style={styles.statsGrid}>
-              <StatBox label="Total Projects"   value={String(profile.stats.totalProjects)}       color={theme.primary} colors={colors} />
-              <StatBox label="Completed"         value={String(profile.stats.completedProjects)}   color={colors.success}       colors={colors} />
-              <StatBox label="In Progress"       value={String(profile.stats.inProgressProjects)}  color={colors.primary}       colors={colors} />
-              <StatBox label="Pending"           value={String(profile.stats.pendingProjects)}     color={colors.warning}       colors={colors} />
-              <StatBox label="Videos Uploaded"   value={String(profile.stats.totalVideosUploaded)} color={theme.primary} colors={colors} />
-              <StatBox label="Approved"          value={String(profile.stats.approvedVideos)}      color={colors.success}       colors={colors} />
-              <StatBox label="Rejected"          value={String(profile.stats.rejectedVideos)}      color={colors.destructive}   colors={colors} />
-              <StatBox label="In Review"         value={String(profile.stats.pendingReviewVideos)} color={colors.warning}       colors={colors} />
+              <StatBox label="Total Projects"   value={String(profile.stats?.totalProjects ?? 0)}       color={theme.primary} colors={colors} />
+              <StatBox label="Completed"         value={String(profile.stats?.completedProjects ?? 0)}   color={colors.success}       colors={colors} />
+              <StatBox label="In Progress"       value={String(profile.stats?.inProgressProjects ?? 0)}  color={colors.primary}       colors={colors} />
+              <StatBox label="Pending"           value={String(profile.stats?.pendingProjects ?? 0)}     color={colors.warning}       colors={colors} />
+              <StatBox label="Videos Uploaded"   value={String(profile.stats?.totalVideosUploaded ?? 0)} color={theme.primary} colors={colors} />
+              <StatBox label="Approved"          value={String(profile.stats?.approvedVideos ?? 0)}      color={colors.success}       colors={colors} />
+              <StatBox label="Rejected"          value={String(profile.stats?.rejectedVideos ?? 0)}      color={colors.destructive}   colors={colors} />
+              <StatBox label="In Review"         value={String(profile.stats?.pendingReviewVideos ?? 0)} color={colors.warning}       colors={colors} />
             </View>
 
             {/* ── Earnings ───────────────────────────────────────────────── */}
@@ -370,13 +370,13 @@ export default function EditorProfileScreen() {
               <View>
                 <Text style={[styles.earningsLabel, { color: colors.mutedForeground }]}>Total Earnings (Completed)</Text>
                 <Text style={[styles.earningsValue, { color: colors.foreground }]}>
-                  ₹{profile.stats.totalEarnings.toLocaleString()}
+                  ₹{(profile.stats?.totalEarnings ?? 0).toLocaleString()}
                 </Text>
               </View>
             </View>
 
             {/* ── Recent Projects ────────────────────────────────────────── */}
-            {profile.recentProjects.length > 0 && (
+            {(profile.recentProjects?.length ?? 0) > 0 && (
               <>
                 <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recent Projects</Text>
                 {profile.recentProjects.map((p: any) => (
@@ -385,11 +385,11 @@ export default function EditorProfileScreen() {
                       <Text style={[styles.projectRowName, { color: colors.foreground }]} numberOfLines={1}>{p.projectName}</Text>
                       <Text style={[styles.projectRowClient, { color: colors.mutedForeground }]} numberOfLines={1}>{p.clientName}</Text>
                       <View style={styles.projectRowMeta}>
-                        <Text style={[styles.projectRowValue, { color: colors.success }]}>₹{p.totalValue.toLocaleString()}</Text>
-                        <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>{p.completedDeliverables}/{p.totalDeliverables} deliverables</Text>
+                        <Text style={[styles.projectRowValue, { color: colors.success }]}>₹{(p.totalValue ?? 0).toLocaleString()}</Text>
+                        <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>{p.completedDeliverables ?? 0}/{p.totalDeliverables ?? 0} deliverables</Text>
                       </View>
                     </View>
-                    <StatusBadge status={p.status} />
+                    {p.status ? <StatusBadge status={p.status} /> : null}
                   </View>
                 ))}
               </>
@@ -543,11 +543,11 @@ export default function EditorProfileScreen() {
                           <Text style={[styles.projectRowName, { color: colors.foreground }]} numberOfLines={1}>{p.projectName}</Text>
                           <Text style={[styles.projectRowClient, { color: colors.mutedForeground }]} numberOfLines={1}>{p.clientName}</Text>
                           <View style={styles.projectRowMeta}>
-                            <Text style={[styles.projectRowValue, { color: colors.success }]}>₹{p.totalValue.toLocaleString()}</Text>
-                            <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>{p.completedDeliverables}/{p.totalDeliverables} deliverables</Text>
+                            <Text style={[styles.projectRowValue, { color: colors.success }]}>₹{(p.totalValue ?? 0).toLocaleString()}</Text>
+                            <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>{p.completedDeliverables ?? 0}/{p.totalDeliverables ?? 0} deliverables</Text>
                           </View>
                         </View>
-                        <StatusBadge status={p.status} />
+                        {p.status ? <StatusBadge status={p.status} /> : null}
                       </View>
                     ))}
                   </>

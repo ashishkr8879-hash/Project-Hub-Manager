@@ -16,7 +16,7 @@ export function StatusBadge({ status }: Props) {
     completed: { label: "Completed", bg: "#dcfce7", text: "#166534" },
   };
 
-  const cfg = config[status];
+  const cfg = config[status] ?? config.pending;
 
   return (
     <View style={[styles.badge, { backgroundColor: cfg.bg }]}>

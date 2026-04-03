@@ -432,6 +432,17 @@ router.post("/projects/:projectId/messages/mark-read", (req, res) => {
   res.json({ success: true });
 });
 
+router.delete("/projects/:projectId/messages/:messageId", (req, res) => {
+  const { projectId, messageId } = req.params;
+  const { requesterId } = req.body;
+  const idx = messages.findIndex((m) => m.id === messageId && m.projectId === projectId);
+  if (idx === -1) { res.status(404).json({ error: "Message not found" }); return; }
+  const msg = messages[idx];
+  if (msg.senderId !== requesterId) { res.status(403).json({ error: "Only the sender can delete this message" }); return; }
+  messages.splice(idx, 1);
+  res.json({ success: true });
+});
+
 router.get("/messages/unread-count/:userId", (req, res) => {
   const { userId } = req.params;
   const userProjectIds = userId === "admin"

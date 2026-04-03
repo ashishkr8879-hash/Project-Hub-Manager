@@ -24,6 +24,7 @@ import {
   sendMessage,
   markMessagesRead,
   setRevision,
+  deleteMessage,
   type Message,
   type Project,
 } from "@/hooks/useApi";
@@ -97,6 +98,9 @@ export function ChatModal({ visible, onClose, project, currentUserId, currentUse
   // Audio playback
   const soundRef = useRef<Audio.Sound | null>(null);
   const [playingMsgId, setPlayingMsgId] = useState<string | null>(null);
+
+  // Delete context
+  const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
 
   const qKey = ["messages", project.id];
 
@@ -233,6 +237,34 @@ export function ChatModal({ visible, onClose, project, currentUserId, currentUse
     } catch { Alert.alert("Error", "Could not play audio."); }
   }
 
+  // ─── Delete message ──────────────────────────────────────────────────────────
+  function handleDeleteForEveryone(msg: Message) {
+    setSelectedMsg(msg);
+    Alert.alert(
+      "Delete Message",
+      "Delete this message for everyone?",
+      [
+        { text: "Cancel", style: "cancel", onPress: () => setSelectedMsg(null) },
+        {
+          text: "Delete for Everyone",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteMessage(project.id, msg.id, currentUserId);
+              localAudioStore.delete(msg.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              queryClient.invalidateQueries({ queryKey: qKey });
+            } catch {
+              Alert.alert("Error", "Could not delete the message.");
+            } finally {
+              setSelectedMsg(null);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   // ─── Send ─────────────────────────────────────────────────────────────────────
   async function handleSend() {
     const trimmed = text.trim();
@@ -304,12 +336,27 @@ export function ChatModal({ visible, onClose, project, currentUserId, currentUse
       ? (role === "editor" ? colors.editorPrimary : colors.adminPrimary)
       : colors.card;
     const textColor = isMe ? "#fff" : colors.foreground;
+    const isSelected = selectedMsg?.id === item.id;
 
     const audioUri = localAudioStore.get(item.id);
     const isPlaying = playingMsgId === item.id;
 
     return (
-      <View style={[styles.msgRow, isMe && styles.msgRowMe]}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onLongPress={() => {
+          if (isMe) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            handleDeleteForEveryone(item);
+          }
+        }}
+        delayLongPress={400}
+        style={[
+          styles.msgRow,
+          isMe && styles.msgRowMe,
+          isSelected && { opacity: 0.6 },
+        ]}
+      >
         {!isMe && (
           <View style={[styles.avatar, { backgroundColor: `${role === "admin" ? colors.editorPrimary : colors.adminPrimary}22` }]}>
             <Text style={[styles.avatarText, { color: role === "admin" ? colors.editorPrimary : colors.adminPrimary }]}>
@@ -343,7 +390,6 @@ export function ChatModal({ visible, onClose, project, currentUserId, currentUse
               <Feather name="mic" size={14} color={isMe ? "rgba(255,255,255,0.6)" : accentColor} />
             </TouchableOpacity>
           ) : item.fileName ? (
-            /* Regular file attachment */
             <>
               {item.text !== `📎 ${item.fileName}` && (
                 <Text style={[styles.msgText, { color: textColor }]}>{item.text}</Text>
@@ -360,9 +406,14 @@ export function ChatModal({ visible, onClose, project, currentUserId, currentUse
             <Text style={[styles.msgText, { color: textColor }]}>{item.text}</Text>
           )}
 
-          <Text style={[styles.msgTime, { color: isMe ? "rgba(255,255,255,0.6)" : colors.mutedForeground }]}>{date} {time}</Text>
+          <View style={styles.msgFooter}>
+            <Text style={[styles.msgTime, { color: isMe ? "rgba(255,255,255,0.6)" : colors.mutedForeground }]}>{date} {time}</Text>
+            {isMe && (
+              <Feather name="check-circle" size={11} color="rgba(255,255,255,0.5)" />
+            )}
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -558,6 +609,7 @@ const styles = StyleSheet.create({
   bubbleRight: { borderBottomRightRadius: 4 },
   senderName: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   msgText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  msgFooter: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 },
   msgTime: { fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "right" },
   attachBubble: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, marginTop: 2 },
   attachName: { fontSize: 12, fontFamily: "Inter_500Medium" },

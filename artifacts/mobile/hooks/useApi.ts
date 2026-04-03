@@ -203,6 +203,9 @@ export const sendMessage = (projectId: string, body: {
 export const markMessagesRead = (projectId: string, userId: string) =>
   apiFetch<{ success: boolean }>(`/projects/${projectId}/messages/mark-read`, { method: "POST", body: JSON.stringify({ userId }) });
 
+export const deleteMessage = (projectId: string, messageId: string, requesterId: string) =>
+  apiFetch<{ success: boolean }>(`/projects/${projectId}/messages/${messageId}`, { method: "DELETE", body: JSON.stringify({ requesterId }) });
+
 // ─── Videos ───────────────────────────────────────────────────────────────────
 
 export const fetchEditorVideos = (editorId: string) =>

@@ -42,7 +42,7 @@ export interface ProjectReference {
 export interface Message {
   id: string; projectId: string;
   senderId: string; senderName: string; senderRole: "admin" | "editor";
-  text: string; fileName?: string; fileSize?: string;
+  text: string; fileName?: string; fileSize?: string; fileType?: string; isAudio?: boolean;
   readBy: string[]; createdAt: string;
 }
 
@@ -197,7 +197,7 @@ export const fetchMessages = (projectId: string) =>
 
 export const sendMessage = (projectId: string, body: {
   senderId: string; senderName: string; senderRole: "admin" | "editor";
-  text: string; fileName?: string; fileSize?: string;
+  text: string; fileName?: string; fileSize?: string; fileType?: string; isAudio?: boolean;
 }) => apiFetch<Message>(`/projects/${projectId}/messages`, { method: "POST", body: JSON.stringify(body) });
 
 export const markMessagesRead = (projectId: string, userId: string) =>

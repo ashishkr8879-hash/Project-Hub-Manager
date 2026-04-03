@@ -29,6 +29,8 @@ interface Message {
   text: string;
   fileName?: string;         // attached file name (optional)
   fileSize?: string;
+  fileType?: string;         // mime type or category
+  isAudio?: boolean;         // voice message flag
   readBy: string[];          // list of userIds who have read this
   createdAt: string;
 }
@@ -401,13 +403,14 @@ router.post("/projects/:projectId/messages", (req, res) => {
   const project = projects.find((p) => p.id === req.params.projectId);
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
 
-  const { senderId, senderName, senderRole, text, fileName, fileSize } = req.body;
+  const { senderId, senderName, senderRole, text, fileName, fileSize, fileType, isAudio } = req.body;
   if (!senderId || !text) { res.status(400).json({ error: "senderId and text required" }); return; }
 
   const msg: Message = {
     id: `m${msgIdCounter++}`, projectId: req.params.projectId,
     senderId, senderName, senderRole,
     text, fileName: fileName || undefined, fileSize: fileSize || undefined,
+    fileType: fileType || undefined, isAudio: isAudio || false,
     readBy: [senderId], createdAt: new Date().toISOString(),
   };
   messages.push(msg);

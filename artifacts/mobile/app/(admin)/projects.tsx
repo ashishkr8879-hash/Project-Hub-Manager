@@ -34,8 +34,10 @@ import {
 const FILTERS = ["All", "Pending", "In Progress", "Completed"] as const;
 
 const TYPE_ICONS: Record<string, string> = {
-  ugc: "video", branded: "star", corporate: "briefcase",
-  wedding: "heart", social_media: "instagram", other: "more-horizontal",
+  ugc: "video", ai_video: "cpu", editing: "scissors",
+  branded: "star", corporate: "briefcase", wedding: "heart",
+  social_media: "instagram", graphic_design: "pen-tool",
+  ads_setup: "radio", website: "globe", other: "more-horizontal",
 };
 
 export default function ProjectsScreen() {

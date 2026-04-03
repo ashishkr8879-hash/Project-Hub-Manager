@@ -14,7 +14,7 @@ export interface EditorFull extends Editor {
   password: string;
 }
 
-export type ProjectType = "ugc" | "ai_video" | "editing" | "branded" | "corporate" | "wedding" | "social_media" | "other";
+export type ProjectType = "ugc" | "ai_video" | "editing" | "branded" | "corporate" | "wedding" | "social_media" | "graphic_design" | "ads_setup" | "website" | "other";
 
 export interface Project {
   id: string;

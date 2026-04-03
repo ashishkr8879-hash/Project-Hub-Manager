@@ -29,14 +29,17 @@ import {
 } from "@/hooks/useApi";
 
 const PROJECT_TYPES: { value: ProjectType; label: string; icon: string; tag?: string; tagColor?: string; tagText?: string }[] = [
-  { value: "ugc",          label: "UGC Video",     icon: "video",            tag: "UGC",  tagColor: "#fef3c7", tagText: "#92400e" },
-  { value: "ai_video",     label: "AI Video",       icon: "cpu",              tag: "AI",   tagColor: "#ede9fe", tagText: "#5b21b6" },
-  { value: "editing",      label: "Editing",        icon: "scissors" },
-  { value: "branded",      label: "Branded",        icon: "star" },
-  { value: "corporate",    label: "Corporate",      icon: "briefcase" },
-  { value: "wedding",      label: "Wedding",        icon: "heart" },
-  { value: "social_media", label: "Social Media",   icon: "instagram" },
-  { value: "other",        label: "Other",          icon: "more-horizontal" },
+  { value: "ugc",            label: "UGC Video",       icon: "video",          tag: "UGC",  tagColor: "#fef3c7", tagText: "#92400e" },
+  { value: "ai_video",       label: "AI Video",        icon: "cpu",            tag: "AI",   tagColor: "#ede9fe", tagText: "#5b21b6" },
+  { value: "editing",        label: "Editing",         icon: "scissors" },
+  { value: "branded",        label: "Branded",         icon: "star" },
+  { value: "corporate",      label: "Corporate",       icon: "briefcase" },
+  { value: "wedding",        label: "Wedding",         icon: "heart" },
+  { value: "social_media",   label: "Social Media",    icon: "instagram" },
+  { value: "graphic_design", label: "Graphic Design",  icon: "pen-tool" },
+  { value: "ads_setup",      label: "Ads Setup",       icon: "radio",          tag: "ADS",  tagColor: "#fce7f3", tagText: "#9d174d" },
+  { value: "website",        label: "Website Dev",     icon: "globe",          tag: "WEB",  tagColor: "#d1fae5", tagText: "#065f46" },
+  { value: "other",          label: "Other",           icon: "more-horizontal" },
 ];
 
 const BUSINESS_TYPES = ["E-commerce", "Healthcare", "Fashion", "Food & Beverage", "Tech", "Entertainment", "Real Estate", "Education", "Fitness", "Other"];

@@ -240,8 +240,10 @@ function EditorDetailModal({ editorId, onClose }: { editorId: string; onClose: (
 
 function ProjectRow({ project, colors }: { project: ProjectWithRevenue; colors: ReturnType<typeof useColors> }) {
   const TYPE_ICONS: Record<string, string> = {
-    ugc: "video", branded: "star", corporate: "briefcase", ai_video: "cpu",
-    editing: "scissors", wedding: "heart", social_media: "instagram", other: "more-horizontal",
+    ugc: "video", ai_video: "cpu", editing: "scissors",
+    branded: "star", corporate: "briefcase", wedding: "heart",
+    social_media: "instagram", graphic_design: "pen-tool",
+    ads_setup: "radio", website: "globe", other: "more-horizontal",
   };
 
   return (

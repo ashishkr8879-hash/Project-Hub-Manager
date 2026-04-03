@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
@@ -141,9 +142,11 @@ function ProjectDetailModal({
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const [chatOpen, setChatOpen] = useState(false);
   const [showAddRef, setShowAddRef] = useState(false);
+  const [refMode, setRefMode] = useState<"link" | "file" | null>(null);
   const [refTitle, setRefTitle] = useState("");
   const [refUrl, setRefUrl] = useState("");
   const [refNote, setRefNote] = useState("");
+  const [refFile, setRefFile] = useState<{ name: string; size: string; type: string } | null>(null);
   const [addingRef, setAddingRef] = useState(false);
 
   const isUGC = project.projectType === "ugc" && project.modelCost > 0;
@@ -154,13 +157,35 @@ function ProjectDetailModal({
     queryFn: () => fetchProjectReferences(project.id),
   });
 
+  async function handlePickRefFile() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: false, multiple: false });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const sizeStr = asset.size
+        ? asset.size < 1024 * 1024 ? `${(asset.size / 1024).toFixed(1)} KB` : `${(asset.size / (1024 * 1024)).toFixed(1)} MB`
+        : "";
+      setRefFile({ name: asset.name, size: sizeStr, type: asset.mimeType ?? "application/octet-stream" });
+      if (!refTitle.trim()) setRefTitle(asset.name.replace(/\.[^.]+$/, ""));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch { Alert.alert("Error", "Could not open file picker"); }
+  }
+
   async function handleAddRef() {
     if (!refTitle.trim()) { Alert.alert("Required", "Title is required"); return; }
+    if (refMode === "link" && !refUrl.trim()) { Alert.alert("Required", "Please enter a URL"); return; }
+    if (refMode === "file" && !refFile) { Alert.alert("Required", "Please pick a file"); return; }
     setAddingRef(true);
     try {
-      await addReference(project.id, { title: refTitle.trim(), url: refUrl.trim() || undefined, note: refNote.trim() });
+      await addReference(project.id, {
+        title: refTitle.trim(),
+        url: refMode === "link" ? refUrl.trim() : undefined,
+        note: refNote.trim(),
+        fileName: refMode === "file" ? refFile?.name : undefined,
+        fileType: refMode === "file" ? refFile?.type : undefined,
+      });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setRefTitle(""); setRefUrl(""); setRefNote(""); setShowAddRef(false);
+      setRefTitle(""); setRefUrl(""); setRefNote(""); setRefFile(null); setShowAddRef(false); setRefMode(null);
       refetchRefs();
     } catch (e: unknown) {
       Alert.alert("Error", e instanceof Error ? e.message : "Failed to add reference");
@@ -327,23 +352,70 @@ function ProjectDetailModal({
                 {/* References header */}
                 <View style={styles.refsHeader}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground }]}>References ({references.length})</Text>
-                  <TouchableOpacity onPress={() => setShowAddRef(!showAddRef)}
-                    style={[styles.addRefBtn, { backgroundColor: colors.primary }]}>
-                    <Feather name={showAddRef ? "minus" : "plus"} size={14} color="#fff" />
-                    <Text style={styles.addRefBtnText}>{showAddRef ? "Cancel" : "Add"}</Text>
-                  </TouchableOpacity>
+                  {!showAddRef && (
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                      <TouchableOpacity onPress={() => { setShowAddRef(true); setRefMode("file"); }}
+                        style={[styles.addRefBtn, { backgroundColor: colors.adminPrimary ?? colors.primary }]}>
+                        <Feather name="upload" size={13} color="#fff" />
+                        <Text style={styles.addRefBtnText}>File</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setShowAddRef(true); setRefMode("link"); }}
+                        style={[styles.addRefBtn, { backgroundColor: colors.primary }]}>
+                        <Feather name="link" size={13} color="#fff" />
+                        <Text style={styles.addRefBtnText}>Link</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {showAddRef && (
+                    <TouchableOpacity onPress={() => { setShowAddRef(false); setRefMode(null); setRefTitle(""); setRefUrl(""); setRefNote(""); setRefFile(null); }}
+                      style={[styles.addRefBtn, { backgroundColor: colors.muted, borderColor: colors.border, borderWidth: 1 }]}>
+                      <Feather name="x" size={13} color={colors.mutedForeground} />
+                      <Text style={[styles.addRefBtnText, { color: colors.mutedForeground }]}>Cancel</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 {/* Add reference form */}
-                {showAddRef && (
+                {showAddRef && refMode && (
                   <View style={[styles.addRefForm, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={[styles.refFormHeader, { color: colors.foreground }]}>
+                      {refMode === "file" ? "📎 Upload File Reference" : "🔗 Add Link Reference"}
+                    </Text>
+
+                    {/* File picker */}
+                    {refMode === "file" && (
+                      <TouchableOpacity onPress={handlePickRefFile}
+                        style={[styles.filePickBtn, { backgroundColor: refFile ? `${colors.primary}08` : colors.muted, borderColor: refFile ? colors.primary : colors.border }]}>
+                        <Feather name={refFile ? "check-circle" : "upload"} size={16} color={refFile ? colors.primary : colors.mutedForeground} />
+                        <View style={{ flex: 1 }}>
+                          {refFile ? (
+                            <>
+                              <Text style={[styles.filePickName, { color: colors.foreground }]} numberOfLines={1}>{refFile.name}</Text>
+                              <Text style={[styles.filePickSize, { color: colors.mutedForeground }]}>{refFile.size}</Text>
+                            </>
+                          ) : (
+                            <Text style={[styles.filePickPlaceholder, { color: colors.mutedForeground }]}>Tap to pick a file</Text>
+                          )}
+                        </View>
+                        {refFile && (
+                          <TouchableOpacity onPress={() => setRefFile(null)}>
+                            <Feather name="x" size={14} color={colors.mutedForeground} />
+                          </TouchableOpacity>
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Link URL */}
+                    {refMode === "link" && (
+                      <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                        value={refUrl} onChangeText={setRefUrl} placeholder="https://drive.google.com/..." placeholderTextColor={colors.mutedForeground}
+                        autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+                    )}
+
                     <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
                       value={refTitle} onChangeText={setRefTitle} placeholder="Title *" placeholderTextColor={colors.mutedForeground} />
                     <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                      value={refUrl} onChangeText={setRefUrl} placeholder="Link (optional)" placeholderTextColor={colors.mutedForeground}
-                      autoCapitalize="none" autoCorrect={false} keyboardType="url" />
-                    <TextInput style={[styles.refInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                      value={refNote} onChangeText={setRefNote} placeholder="Note for editor" placeholderTextColor={colors.mutedForeground} multiline />
+                      value={refNote} onChangeText={setRefNote} placeholder="Note for editor (optional)" placeholderTextColor={colors.mutedForeground} multiline />
                     <TouchableOpacity onPress={handleAddRef} disabled={addingRef}
                       style={[styles.refSaveBtn, { backgroundColor: addingRef ? colors.muted : colors.primary }]}>
                       {addingRef ? <ActivityIndicator color="#fff" size="small" />
@@ -355,11 +427,14 @@ function ProjectDetailModal({
             }
             renderItem={({ item }) => (
               <View style={[styles.refCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.refIcon, { backgroundColor: `${colors.primary}15` }]}>
-                  <Feather name="link" size={14} color={colors.primary} />
+                <View style={[styles.refIcon, { backgroundColor: item.fileName ? `${colors.adminPrimary ?? colors.primary}15` : `${colors.primary}15` }]}>
+                  <Feather name={item.fileName ? "file" : "link"} size={14} color={item.fileName ? (colors.adminPrimary ?? colors.primary) : colors.primary} />
                 </View>
                 <View style={styles.refContent}>
                   <Text style={[styles.refTitle, { color: colors.foreground }]}>{item.title}</Text>
+                  {item.fileName && (
+                    <Text style={[styles.refUrl, { color: colors.adminPrimary ?? colors.primary }]} numberOfLines={1}>📎 {item.fileName}</Text>
+                  )}
                   {item.url && (
                     <TouchableOpacity onPress={() => Linking.openURL(item.url!).catch(() => {})}>
                       <Text style={[styles.refUrl, { color: colors.primary }]} numberOfLines={1}>{item.url}</Text>
@@ -460,4 +535,9 @@ const styles = StyleSheet.create({
   refDelete: { padding: 4 },
   emptyRefs: { alignItems: "center", padding: 24, borderRadius: 14, borderWidth: 1, gap: 6 },
   emptyRefsText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  refFormHeader: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  filePickBtn: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1 },
+  filePickName: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  filePickSize: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  filePickPlaceholder: { fontSize: 13, fontFamily: "Inter_400Regular" },
 });

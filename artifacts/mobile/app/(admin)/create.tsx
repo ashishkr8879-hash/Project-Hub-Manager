@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
@@ -27,16 +28,20 @@ import {
   type ProjectType,
 } from "@/hooks/useApi";
 
-const PROJECT_TYPES: { value: ProjectType; label: string; icon: string; ugc?: boolean }[] = [
-  { value: "ugc",          label: "UGC",         icon: "video",            ugc: true },
-  { value: "branded",      label: "Branded",      icon: "star" },
-  { value: "corporate",    label: "Corporate",    icon: "briefcase" },
-  { value: "wedding",      label: "Wedding",      icon: "heart" },
-  { value: "social_media", label: "Social Media", icon: "instagram" },
-  { value: "other",        label: "Other",        icon: "more-horizontal" },
+const PROJECT_TYPES: { value: ProjectType; label: string; icon: string; tag?: string; tagColor?: string; tagText?: string }[] = [
+  { value: "ugc",          label: "UGC Video",     icon: "video",            tag: "UGC",  tagColor: "#fef3c7", tagText: "#92400e" },
+  { value: "ai_video",     label: "AI Video",       icon: "cpu",              tag: "AI",   tagColor: "#ede9fe", tagText: "#5b21b6" },
+  { value: "editing",      label: "Editing",        icon: "scissors" },
+  { value: "branded",      label: "Branded",        icon: "star" },
+  { value: "corporate",    label: "Corporate",      icon: "briefcase" },
+  { value: "wedding",      label: "Wedding",        icon: "heart" },
+  { value: "social_media", label: "Social Media",   icon: "instagram" },
+  { value: "other",        label: "Other",          icon: "more-horizontal" },
 ];
 
-interface RefInput { title: string; url: string; note: string; }
+const BUSINESS_TYPES = ["E-commerce", "Healthcare", "Fashion", "Food & Beverage", "Tech", "Entertainment", "Real Estate", "Education", "Fitness", "Other"];
+
+interface RefInput { title: string; url: string; note: string; fileName?: string; fileType?: string; }
 
 export default function CreateProjectScreen() {
   const colors = useColors();
@@ -45,42 +50,52 @@ export default function CreateProjectScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   // Project fields
-  const [projectType, setProjectType]         = useState<ProjectType>("branded");
-  const [selectedClient, setSelectedClient]   = useState<Client | null>(null);
-  const [customClientName, setCustomClientName] = useState("");
-  const [projectName, setProjectName]         = useState("");
-  const [totalValue, setTotalValue]           = useState("");
-  const [modelCost, setModelCost]             = useState("");
+  const [projectType, setProjectType]             = useState<ProjectType>("ugc");
+  const [selectedClient, setSelectedClient]       = useState<Client | null>(null);
+  const [customClientName, setCustomClientName]   = useState("");
+  const [customClientPhone, setCustomClientPhone] = useState("");
+  const [customClientEmail, setCustomClientEmail] = useState("");
+  const [customClientBiz, setCustomClientBiz]     = useState("Other");
+  const [customClientCity, setCustomClientCity]   = useState("");
+  const [showBizPicker, setShowBizPicker]         = useState(false);
+  const [projectName, setProjectName]             = useState("");
+  const [totalValue, setTotalValue]               = useState("");
+  const [modelCost, setModelCost]                 = useState("");
   const [totalDeliverables, setTotalDeliverables] = useState("");
-  const [deadline, setDeadline]               = useState("");
-  const [notes, setNotes]                     = useState("");
-  const [script, setScript]                   = useState("");
-  const [showDatePicker, setShowDatePicker]   = useState(false);
-  const [selectedEditor, setSelectedEditor]   = useState<Editor | null>(null);
-  const [submitting, setSubmitting]           = useState(false);
-  const [createdProject, setCreatedProject]   = useState<Project | null>(null);
+  const [deadline, setDeadline]                   = useState("");
+  const [notes, setNotes]                         = useState("");
+  const [script, setScript]                       = useState("");
+  const [showDatePicker, setShowDatePicker]       = useState(false);
+  const [selectedEditor, setSelectedEditor]       = useState<Editor | null>(null);
+  const [submitting, setSubmitting]               = useState(false);
+  const [createdProject, setCreatedProject]       = useState<Project | null>(null);
 
-  // Reference upload state (after project creation)
-  const [refs, setRefs]           = useState<RefInput[]>([]);
+  // Reference state (after project creation)
+  const [refs, setRefs]         = useState<RefInput[]>([]);
   const [addingRef, setAddingRef] = useState(false);
-  const [refTitle, setRefTitle]   = useState("");
-  const [refUrl, setRefUrl]       = useState("");
-  const [refNote, setRefNote]     = useState("");
+  const [refMode, setRefMode]   = useState<"link" | "file" | null>(null);
+  const [refTitle, setRefTitle] = useState("");
+  const [refUrl, setRefUrl]     = useState("");
+  const [refNote, setRefNote]   = useState("");
+  const [refFile, setRefFile]   = useState<{ name: string; size: string; type: string } | null>(null);
   const [savingRef, setSavingRef] = useState(false);
 
   const { data: editors = [], isLoading: editorsLoading } = useQuery({ queryKey: ["editors"], queryFn: fetchEditors });
   const { data: clients = [], isLoading: clientsLoading } = useQuery({ queryKey: ["clients"], queryFn: fetchClients });
 
   const isUGC    = projectType === "ugc";
+  const isAI     = projectType === "ai_video";
   const tv       = parseFloat(totalValue) || 0;
   const mc       = parseFloat(modelCost) || 0;
   const netPayout = tv - mc;
 
   function resetForm() {
-    setProjectType("branded"); setSelectedClient(null); setCustomClientName("");
+    setProjectType("ugc"); setSelectedClient(null);
+    setCustomClientName(""); setCustomClientPhone(""); setCustomClientEmail(""); setCustomClientBiz("Other"); setCustomClientCity("");
     setProjectName(""); setTotalValue(""); setModelCost(""); setTotalDeliverables("");
     setDeadline(""); setNotes(""); setScript(""); setSelectedEditor(null);
-    setRefs([]); setCreatedProject(null);
+    setRefs([]); setCreatedProject(null); setAddingRef(false); setRefMode(null);
+    setRefTitle(""); setRefUrl(""); setRefNote(""); setRefFile(null);
   }
 
   async function handleSubmit() {
@@ -98,12 +113,14 @@ export default function CreateProjectScreen() {
       const proj = await createProject({
         clientId: selectedClient?.id,
         clientName,
-        clientPhone: selectedClient?.phone,
-        clientEmail: selectedClient?.email,
+        clientPhone: (selectedClient?.phone ?? customClientPhone.trim()) || undefined,
+        clientEmail: (selectedClient?.email ?? customClientEmail.trim()) || undefined,
+        clientBusinessType: selectedClient ? undefined : customClientBiz,
+        clientCity: selectedClient ? undefined : customClientCity.trim() || undefined,
         projectName: projectName.trim(),
         projectType,
         totalValue: tv,
-        modelCost: isUGC ? mc : 0,
+        modelCost: (isUGC || isAI) ? mc : 0,
         totalDeliverables: parseInt(totalDeliverables, 10),
         editorId: selectedEditor.id,
         deadline: deadline.trim() || undefined,
@@ -116,6 +133,7 @@ export default function CreateProjectScreen() {
       await queryClient.invalidateQueries({ queryKey: ["notifications"] });
       await queryClient.invalidateQueries({ queryKey: ["editor-projects"] });
       await queryClient.invalidateQueries({ queryKey: ["admin-profile"] });
+      await queryClient.invalidateQueries({ queryKey: ["clients"] });
       setCreatedProject(proj);
     } catch (e: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -123,24 +141,42 @@ export default function CreateProjectScreen() {
     } finally { setSubmitting(false); }
   }
 
+  async function handlePickRefFile() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: false, multiple: false });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const sizeStr = asset.size
+        ? asset.size < 1024 * 1024 ? `${(asset.size / 1024).toFixed(1)} KB` : `${(asset.size / (1024 * 1024)).toFixed(1)} MB`
+        : "";
+      setRefFile({ name: asset.name, size: sizeStr, type: asset.mimeType ?? "application/octet-stream" });
+      if (!refTitle.trim()) setRefTitle(asset.name.replace(/\.[^.]+$/, ""));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch { Alert.alert("Error", "Could not open file picker"); }
+  }
+
   async function handleAddRef() {
     if (!refTitle.trim() || !createdProject) return;
+    if (refMode === "link" && !refUrl.trim()) { Alert.alert("Required", "Please enter a link URL"); return; }
+    if (refMode === "file" && !refFile) { Alert.alert("Required", "Please pick a file first"); return; }
     setSavingRef(true);
     try {
       await addReference(createdProject.id, {
         title: refTitle.trim(),
-        url: refUrl.trim() || undefined,
+        url: refMode === "link" ? refUrl.trim() : undefined,
         note: refNote.trim(),
+        fileName: refMode === "file" ? refFile?.name : undefined,
+        fileType: refMode === "file" ? refFile?.type : undefined,
       });
-      setRefs((prev) => [...prev, { title: refTitle.trim(), url: refUrl.trim(), note: refNote.trim() }]);
+      setRefs((prev) => [...prev, { title: refTitle.trim(), url: refMode === "link" ? refUrl.trim() : "", note: refNote.trim(), fileName: refFile?.name, fileType: refFile?.type }]);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setRefTitle(""); setRefUrl(""); setRefNote(""); setAddingRef(false);
+      setRefTitle(""); setRefUrl(""); setRefNote(""); setRefFile(null); setAddingRef(false); setRefMode(null);
       await queryClient.invalidateQueries({ queryKey: ["project-refs", createdProject.id] });
     } catch { Alert.alert("Error", "Could not save reference"); }
     finally { setSavingRef(false); }
   }
 
-  // ── Success state: show reference upload panel ─────────────────────────────
+  // ── Success / Reference Upload state ──────────────────────────────────────────
   if (createdProject) {
     return (
       <ScrollView
@@ -158,59 +194,106 @@ export default function CreateProjectScreen() {
           </View>
         </View>
 
-        {/* Reference upload section */}
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>
           ADD REFERENCE FILES (OPTIONAL)
         </Text>
         <Text style={[styles.refHint, { color: colors.mutedForeground }]}>
-          Upload reference links, briefs, or style guides for the editor.
+          Upload files or add links for the editor — briefs, style guides, scripts, etc.
         </Text>
 
         {/* Saved refs */}
         {refs.map((r, i) => (
           <View key={i} style={[styles.savedRef, { backgroundColor: `${colors.primary}08`, borderColor: `${colors.primary}25` }]}>
-            <Feather name="paperclip" size={14} color={colors.primary} />
+            <Feather name={r.fileName ? "file" : "link"} size={14} color={colors.primary} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.savedRefTitle, { color: colors.foreground }]}>{r.title}</Text>
+              {r.fileName && <Text style={[styles.savedRefUrl, { color: colors.primary }]} numberOfLines={1}>📎 {r.fileName}</Text>}
               {r.url ? <Text style={[styles.savedRefUrl, { color: colors.primary }]} numberOfLines={1}>{r.url}</Text> : null}
               {r.note ? <Text style={[styles.savedRefNote, { color: colors.mutedForeground }]} numberOfLines={1}>{r.note}</Text> : null}
             </View>
           </View>
         ))}
 
+        {/* Mode picker (if not in add mode) */}
+        {!addingRef && (
+          <View style={styles.refModeRow}>
+            <TouchableOpacity
+              onPress={() => { setAddingRef(true); setRefMode("file"); }}
+              style={[styles.refModeBtn, { backgroundColor: `${colors.adminPrimary}10`, borderColor: `${colors.adminPrimary}30` }]}
+            >
+              <Feather name="upload" size={16} color={colors.adminPrimary} />
+              <Text style={[styles.refModeBtnText, { color: colors.adminPrimary }]}>Upload File</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { setAddingRef(true); setRefMode("link"); }}
+              style={[styles.refModeBtn, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}
+            >
+              <Feather name="link" size={16} color={colors.primary} />
+              <Text style={[styles.refModeBtnText, { color: colors.primary }]}>Add Link</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Add ref form */}
-        {addingRef ? (
+        {addingRef && refMode && (
           <View style={[styles.refForm, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.refFormTitle, { color: colors.foreground }]}>Add Reference</Text>
-            <InputField label="Title *" value={refTitle} onChangeText={setRefTitle} placeholder="e.g. Brand Guidelines PDF" colors={colors} />
-            <InputField label="Link (optional)" value={refUrl} onChangeText={setRefUrl} placeholder="https://drive.google.com/..." colors={colors} />
+            <Text style={[styles.refFormTitle, { color: colors.foreground }]}>
+              {refMode === "file" ? "📎 Upload Reference File" : "🔗 Add Reference Link"}
+            </Text>
+
+            {/* File picker */}
+            {refMode === "file" && (
+              <TouchableOpacity
+                onPress={handlePickRefFile}
+                style={[styles.filePickBtn, { backgroundColor: refFile ? `${colors.adminPrimary}10` : colors.muted, borderColor: refFile ? colors.adminPrimary : colors.border }]}
+              >
+                <Feather name={refFile ? "check-circle" : "upload"} size={18} color={refFile ? colors.adminPrimary : colors.mutedForeground} />
+                <View style={{ flex: 1 }}>
+                  {refFile ? (
+                    <>
+                      <Text style={[styles.filePickName, { color: colors.foreground }]} numberOfLines={1}>{refFile.name}</Text>
+                      <Text style={[styles.filePickSize, { color: colors.mutedForeground }]}>{refFile.size}</Text>
+                    </>
+                  ) : (
+                    <Text style={[styles.filePickPlaceholder, { color: colors.mutedForeground }]}>Tap to pick a file from device</Text>
+                  )}
+                </View>
+                {refFile && (
+                  <TouchableOpacity onPress={() => setRefFile(null)}>
+                    <Feather name="x" size={16} color={colors.mutedForeground} />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {/* Link URL */}
+            {refMode === "link" && (
+              <InputField label="URL *" value={refUrl} onChangeText={setRefUrl} placeholder="https://drive.google.com/..." colors={colors} />
+            )}
+
+            <InputField label="Title *" value={refTitle} onChangeText={setRefTitle} placeholder="e.g. Brand Guidelines" colors={colors} />
             <View style={styles.field}>
               <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Note (optional)</Text>
               <TextInput
                 style={[styles.input, styles.textAreaSm, { backgroundColor: colors.background, borderColor: colors.border, color: colors.foreground }]}
                 value={refNote} onChangeText={setRefNote}
-                placeholder="Instructions or context for this reference"
+                placeholder="Instructions or context for editor"
                 placeholderTextColor={colors.mutedForeground} multiline numberOfLines={3}
               />
             </View>
+
             <View style={styles.refFormBtns}>
-              <TouchableOpacity onPress={() => { setAddingRef(false); setRefTitle(""); setRefUrl(""); setRefNote(""); }}
+              <TouchableOpacity onPress={() => { setAddingRef(false); setRefMode(null); setRefTitle(""); setRefUrl(""); setRefNote(""); setRefFile(null); }}
                 style={[styles.refCancelBtn, { borderColor: colors.border }]}>
                 <Text style={[styles.refCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleAddRef} disabled={savingRef || !refTitle.trim()}
-                style={[styles.refSaveBtn, { backgroundColor: !refTitle.trim() ? colors.muted : colors.primary }]}>
+                style={[styles.refSaveBtn, { backgroundColor: !refTitle.trim() ? colors.muted : colors.adminPrimary }]}>
                 {savingRef ? <ActivityIndicator size="small" color="#fff" /> :
-                  <><Feather name="upload" size={14} color="#fff" /><Text style={styles.refSaveText}>Save Reference</Text></>}
+                  <><Feather name="save" size={14} color="#fff" /><Text style={styles.refSaveText}>Save</Text></>}
               </TouchableOpacity>
             </View>
           </View>
-        ) : (
-          <TouchableOpacity onPress={() => setAddingRef(true)}
-            style={[styles.addRefBtn, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}>
-            <Feather name="plus" size={16} color={colors.primary} />
-            <Text style={[styles.addRefText, { color: colors.primary }]}>Add Reference File / Link</Text>
-          </TouchableOpacity>
         )}
 
         <TouchableOpacity onPress={resetForm}
@@ -222,7 +305,7 @@ export default function CreateProjectScreen() {
     );
   }
 
-  // ── Create form ────────────────────────────────────────────────────────────
+  // ── Create Form ────────────────────────────────────────────────────────────────
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -238,25 +321,33 @@ export default function CreateProjectScreen() {
             <TouchableOpacity key={t.value} onPress={() => setProjectType(t.value)}
               style={[styles.typeChip,
                 { backgroundColor: active ? `${colors.primary}15` : colors.card, borderColor: active ? colors.primary : colors.border, borderWidth: active ? 2 : 1 }]}>
-              <Feather name={t.icon as never} size={16} color={active ? colors.primary : colors.mutedForeground} />
+              <Feather name={t.icon as never} size={15} color={active ? colors.primary : colors.mutedForeground} />
               <Text style={[styles.typeLabel, { color: active ? colors.primary : colors.foreground }]}>{t.label}</Text>
-              {t.ugc && <View style={[styles.ugcTag, { backgroundColor: "#fef3c7" }]}><Text style={[styles.ugcTagText, { color: "#92400e" }]}>UGC</Text></View>}
+              {t.tag && (
+                <View style={[styles.typeTag, { backgroundColor: t.tagColor }]}>
+                  <Text style={[styles.typeTagText, { color: t.tagText }]}>{t.tag}</Text>
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
       </View>
 
       {isUGC && (
-        <View style={[styles.ugcNotice, { backgroundColor: "#fef9c3", borderColor: "#fde047" }]}>
+        <View style={[styles.notice, { backgroundColor: "#fef9c3", borderColor: "#fde047" }]}>
           <Feather name="info" size={14} color="#a16207" />
-          <Text style={[styles.ugcNoticeText, { color: "#92400e" }]}>
-            UGC project: model cost will be deducted from total value to show net editor payout.
-          </Text>
+          <Text style={[styles.noticeText, { color: "#92400e" }]}>UGC project — model cost will be deducted to show net editor payout.</Text>
+        </View>
+      )}
+      {isAI && (
+        <View style={[styles.notice, { backgroundColor: "#ede9fe", borderColor: "#c4b5fd" }]}>
+          <Feather name="cpu" size={14} color="#5b21b6" />
+          <Text style={[styles.noticeText, { color: "#5b21b6" }]}>AI Video project — include model/tool cost if applicable.</Text>
         </View>
       )}
 
-      {/* Client selection */}
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>SELECT CLIENT *</Text>
+      {/* ── Client Selection ─────────────────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>CLIENT *</Text>
       {clientsLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
       ) : (
@@ -278,55 +369,95 @@ export default function CreateProjectScreen() {
               );
             })}
           </ScrollView>
+
           {!selectedClient && (
-            <View style={styles.field}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>— or type a new client name —</Text>
-              <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-                value={customClientName} onChangeText={setCustomClientName}
-                placeholder="New client name" placeholderTextColor={colors.mutedForeground} />
+            <View style={[styles.newClientBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.newClientTitle, { color: colors.foreground }]}>+ New Client Details</Text>
+              <InputField label="Client Name *" value={customClientName} onChangeText={setCustomClientName} placeholder="e.g. StyleBrand Co." colors={colors} />
+              <View style={styles.row}>
+                <View style={styles.halfField}>
+                  <InputField label="Phone" value={customClientPhone} onChangeText={setCustomClientPhone} placeholder="+91 98765 00000" colors={colors} />
+                </View>
+                <View style={styles.halfField}>
+                  <InputField label="City" value={customClientCity} onChangeText={setCustomClientCity} placeholder="Mumbai" colors={colors} />
+                </View>
+              </View>
+              <InputField label="Email" value={customClientEmail} onChangeText={setCustomClientEmail} placeholder="client@brand.com" colors={colors} />
+
+              {/* Business Type picker */}
+              <View style={styles.field}>
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Business Type</Text>
+                <TouchableOpacity
+                  onPress={() => setShowBizPicker(!showBizPicker)}
+                  style={[styles.input, styles.pickerRow, { backgroundColor: colors.background, borderColor: colors.border }]}
+                >
+                  <Text style={{ color: colors.foreground, fontFamily: "Inter_400Regular", fontSize: 14, flex: 1 }}>{customClientBiz}</Text>
+                  <Feather name={showBizPicker ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
+                </TouchableOpacity>
+                {showBizPicker && (
+                  <View style={[styles.bizDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    {BUSINESS_TYPES.map((b) => (
+                      <TouchableOpacity key={b} onPress={() => { setCustomClientBiz(b); setShowBizPicker(false); }}
+                        style={[styles.bizOption, { backgroundColor: customClientBiz === b ? `${colors.primary}12` : "transparent" }]}>
+                        <Text style={[styles.bizOptionText, { color: customClientBiz === b ? colors.primary : colors.foreground }]}>{b}</Text>
+                        {customClientBiz === b && <Feather name="check" size={14} color={colors.primary} />}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
           )}
         </>
       )}
 
-      {/* Project details */}
+      {/* ── Project Details ──────────────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>PROJECT DETAILS</Text>
       <InputField label="Project Name *" value={projectName} onChangeText={setProjectName} placeholder="e.g. Brand Video Series" colors={colors} />
 
       <View style={styles.row}>
         <View style={styles.halfField}>
           <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Total Value (₹) *</Text>
-          <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-            value={totalValue} onChangeText={setTotalValue} placeholder="5000" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
+          <View style={[styles.inputWithPrefix, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.inputPrefix, { color: colors.mutedForeground }]}>₹</Text>
+            <TextInput style={[styles.inputInner, { color: colors.foreground }]}
+              value={totalValue} onChangeText={setTotalValue} placeholder="5000" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
+          </View>
         </View>
         <View style={styles.halfField}>
-          <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Deliverables *</Text>
+          <Text style={[styles.fieldLabel, { color: colors.foreground }]}>No. of Videos *</Text>
           <TextInput style={[styles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
             value={totalDeliverables} onChangeText={setTotalDeliverables} placeholder="4" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
         </View>
       </View>
 
-      {isUGC && (
+      {(isUGC || isAI) && (
         <>
           <View style={styles.field}>
-            <Text style={[styles.fieldLabel, { color: "#b45309" }]}>Model Cost (₹) * <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular" }}>(will be deducted)</Text></Text>
-            <TextInput style={[styles.input, { backgroundColor: "#fef9c3", borderColor: "#fde047", color: colors.foreground }]}
-              value={modelCost} onChangeText={setModelCost} placeholder="e.g. 2500" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
+            <Text style={[styles.fieldLabel, { color: isUGC ? "#b45309" : "#5b21b6" }]}>
+              {isUGC ? "Model Cost (₹) *" : "AI Tool Cost (₹)"}{" "}
+              <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular" }}>(will be deducted)</Text>
+            </Text>
+            <View style={[styles.inputWithPrefix, { backgroundColor: isUGC ? "#fef9c3" : "#ede9fe", borderColor: isUGC ? "#fde047" : "#c4b5fd" }]}>
+              <Text style={[styles.inputPrefix, { color: isUGC ? "#a16207" : "#5b21b6" }]}>₹</Text>
+              <TextInput style={[styles.inputInner, { color: colors.foreground }]}
+                value={modelCost} onChangeText={setModelCost} placeholder="e.g. 2500" placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
+            </View>
           </View>
           {tv > 0 && mc > 0 && (
             <View style={[styles.payoutBox, { backgroundColor: "#dcfce7", borderColor: "#bbf7d0" }]}>
               <Feather name="trending-up" size={16} color="#166534" />
               <Text style={[styles.payoutText, { color: "#166534" }]}>
-                Net Editor Payout: <Text style={styles.payoutValue}>₹{netPayout.toLocaleString()}</Text>
-                <Text style={[styles.payoutSub, { color: "#15803d" }]}> (₹{tv.toLocaleString()} – ₹{mc.toLocaleString()} model)</Text>
+                Net Payout: <Text style={styles.payoutValue}>₹{netPayout.toLocaleString("en-IN")}</Text>
+                <Text style={{ fontSize: 12 }}> (₹{tv.toLocaleString("en-IN")} – ₹{mc.toLocaleString("en-IN")} cost)</Text>
               </Text>
             </View>
           )}
         </>
       )}
 
-      {/* Deadline with calendar picker */}
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>DEADLINE (OPTIONAL)</Text>
+      {/* ── Deadline ─────────────────────────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>DEADLINE *</Text>
       <TouchableOpacity
         onPress={() => setShowDatePicker(true)}
         style={[styles.datePickerBtn, { backgroundColor: colors.card, borderColor: deadline ? colors.primary : colors.border, borderWidth: deadline ? 2 : 1 }]}
@@ -335,13 +466,14 @@ export default function CreateProjectScreen() {
         <Text style={[styles.datePickerText, { color: deadline ? colors.foreground : colors.mutedForeground }]}>
           {deadline ? new Date(deadline).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "Tap to pick a deadline date"}
         </Text>
-        {deadline ? (
+        {deadline && (
           <TouchableOpacity onPress={() => setDeadline("")}>
             <Feather name="x" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
-        ) : null}
+        )}
       </TouchableOpacity>
 
+      {/* ── Script ───────────────────────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>SCRIPT (OPTIONAL)</Text>
       <View style={styles.field}>
         <TextInput style={[styles.input, styles.textArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
@@ -350,15 +482,16 @@ export default function CreateProjectScreen() {
           placeholderTextColor={colors.mutedForeground} multiline numberOfLines={5} />
       </View>
 
+      {/* ── Notes ────────────────────────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>NOTES FOR EDITOR</Text>
       <View style={styles.field}>
         <TextInput style={[styles.input, styles.textArea, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
           value={notes} onChangeText={setNotes}
-          placeholder="Instructions, style guidelines, model details, references..."
+          placeholder="Instructions, style guidelines, model details..."
           placeholderTextColor={colors.mutedForeground} multiline numberOfLines={4} />
       </View>
 
-      {/* Assign editor */}
+      {/* ── Assign Editor ────────────────────────────────────────────────────── */}
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 8 }]}>ASSIGN EDITOR *</Text>
       {editorsLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
@@ -421,57 +554,71 @@ const styles = StyleSheet.create({
   successCard: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 16, borderRadius: 16, borderWidth: 1 },
   successTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
   successSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2, lineHeight: 18 },
-  refHint: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 4 },
+  refHint: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 6 },
   savedRef: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1 },
   savedRefTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   savedRefUrl: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   savedRefNote: { fontSize: 11, fontFamily: "Inter_400Regular", color: "#6b7280" },
+  refModeRow: { flexDirection: "row", gap: 10 },
+  refModeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderStyle: "dashed" },
+  refModeBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   refForm: { borderRadius: 16, borderWidth: 1, padding: 14, gap: 10 },
   refFormTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  filePickBtn: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 12, borderWidth: 1 },
+  filePickName: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  filePickSize: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  filePickPlaceholder: { fontSize: 13, fontFamily: "Inter_400Regular" },
   refFormBtns: { flexDirection: "row", gap: 8 },
   refCancelBtn: { flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, alignItems: "center" },
   refCancelText: { fontSize: 14, fontFamily: "Inter_500Medium" },
   refSaveBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 12, borderRadius: 12, gap: 6 },
   refSaveText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  addRefBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, borderRadius: 14, borderWidth: 1, borderStyle: "dashed" },
-  addRefText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   newProjectBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, borderRadius: 14, borderWidth: 1, marginTop: 4 },
   newProjectText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  // New Client box
+  newClientBox: { borderRadius: 16, borderWidth: 1, padding: 14, gap: 6 },
+  newClientTitle: { fontSize: 14, fontFamily: "Inter_700Bold", marginBottom: 4 },
   // Form
   typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   typeChip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, gap: 6 },
   typeLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  ugcTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  ugcTagText: { fontSize: 10, fontFamily: "Inter_700Bold" },
-  ugcNotice: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
-  ugcNoticeText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  typeTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  typeTagText: { fontSize: 9, fontFamily: "Inter_700Bold" },
+  notice: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 10, borderRadius: 12, borderWidth: 1 },
+  noticeText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 17 },
   clientScroll: { marginBottom: 8 },
-  clientScrollContent: { gap: 8, paddingVertical: 4 },
-  clientChip: { borderRadius: 14, padding: 12, alignItems: "center", gap: 4, minWidth: 90, maxWidth: 110 },
-  clientChipAvatar: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  clientChipInitials: { fontSize: 14, fontFamily: "Inter_700Bold" },
-  clientChipName: { fontSize: 11, fontFamily: "Inter_600SemiBold", textAlign: "center" },
+  clientScrollContent: { gap: 8, paddingBottom: 4 },
+  clientChip: { alignItems: "center", width: 110, padding: 10, borderRadius: 14, gap: 4 },
+  clientChipAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  clientChipInitials: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  clientChipName: { fontSize: 12, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   clientChipBiz: { fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "center" },
-  datePickerBtn: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 12 },
-  datePickerText: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
+  field: { gap: 4 },
+  fieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
   row: { flexDirection: "row", gap: 10 },
-  halfField: { flex: 1, gap: 6 },
-  field: { gap: 6 },
-  fieldLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
-  input: { padding: 14, borderRadius: 12, borderWidth: 1, fontSize: 15, fontFamily: "Inter_400Regular" },
-  textArea: { minHeight: 90, textAlignVertical: "top" },
-  textAreaSm: { minHeight: 60, textAlignVertical: "top" },
+  halfField: { flex: 1 },
+  input: { padding: 12, borderRadius: 12, borderWidth: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  inputWithPrefix: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 12 },
+  inputPrefix: { fontSize: 16, fontFamily: "Inter_600SemiBold", marginRight: 4 },
+  inputInner: { flex: 1, padding: 12, paddingLeft: 0, fontSize: 14, fontFamily: "Inter_400Regular" },
+  pickerRow: { flexDirection: "row", alignItems: "center" },
+  bizDropdown: { borderRadius: 12, borderWidth: 1, marginTop: 4, overflow: "hidden" },
+  bizOption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10 },
+  bizOptionText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  textArea: { height: 100, textAlignVertical: "top" },
+  textAreaSm: { height: 72, textAlignVertical: "top" },
   payoutBox: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
-  payoutText: { fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
+  payoutText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
   payoutValue: { fontFamily: "Inter_700Bold" },
-  payoutSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  editorList: { gap: 10 },
+  datePickerBtn: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 14 },
+  datePickerText: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  editorList: { gap: 8 },
   editorChip: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 14, gap: 10 },
-  editorAvatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
-  editorInitials: { fontSize: 13, fontFamily: "Inter_700Bold" },
-  editorInfo: { flex: 1, gap: 1 },
+  editorAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  editorInitials: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  editorInfo: { flex: 1 },
   editorName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  editorSpec: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 16, borderRadius: 14, gap: 8, marginTop: 12 },
-  submitText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  editorSpec: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+  submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 16, borderRadius: 16, marginTop: 8 },
+  submitText: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
 });

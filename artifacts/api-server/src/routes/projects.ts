@@ -17,7 +17,7 @@ interface Client {
 
 interface ProjectReference {
   id: string; projectId: string; title: string;
-  url?: string; note: string; addedAt: string;
+  url?: string; fileName?: string; fileType?: string; note: string; addedAt: string;
 }
 
 interface Message {
@@ -35,7 +35,7 @@ interface Message {
   createdAt: string;
 }
 
-type ProjectType = "ugc" | "branded" | "corporate" | "wedding" | "social_media" | "other";
+type ProjectType = "ugc" | "ai_video" | "editing" | "branded" | "corporate" | "wedding" | "social_media" | "other";
 
 interface Project {
   id: string;
@@ -304,14 +304,33 @@ router.get("/dashboard/stats", (_req, res) => {
 });
 
 router.post("/projects", (req, res) => {
-  const { clientId, clientName, clientPhone, clientEmail, projectName, projectType, totalValue, modelCost, totalDeliverables, editorId, deadline, notes, script } = req.body;
+  const { clientId, clientName, clientPhone, clientEmail, clientBusinessType, clientCity, projectName, projectType, totalValue, modelCost, totalDeliverables, editorId, deadline, notes, script } = req.body;
   if (!clientName || !projectName || totalValue == null || totalDeliverables == null || !editorId) {
     res.status(400).json({ error: "All fields required" }); return;
   }
   const editor = editors.find((e) => e.id === editorId);
   if (!editor) { res.status(400).json({ error: "Editor not found" }); return; }
+
+  // Auto-create client record if no clientId but we have details
+  let resolvedClientId = clientId;
+  if (!clientId && clientName) {
+    const existing = clients.find((c) => c.name.toLowerCase() === clientName.toLowerCase());
+    if (!existing) {
+      const newClient: Client = {
+        id: `c${clientIdCounter++}`, name: clientName,
+        phone: clientPhone || "", email: clientEmail || "",
+        businessType: clientBusinessType || "Other", city: clientCity || "",
+        createdAt: new Date().toISOString(),
+      };
+      clients.push(newClient);
+      resolvedClientId = newClient.id;
+    } else {
+      resolvedClientId = existing.id;
+    }
+  }
+
   const project: Project = {
-    id: `p${projectIdCounter++}`, clientId, clientName, clientPhone, clientEmail,
+    id: `p${projectIdCounter++}`, clientId: resolvedClientId, clientName, clientPhone, clientEmail,
     projectName, projectType: projectType || "other",
     totalValue: Number(totalValue), modelCost: Number(modelCost) || 0,
     totalDeliverables: Number(totalDeliverables), editorId, editorName: editor.name, editorPhone: editor.phone,
@@ -382,9 +401,9 @@ router.get("/projects/:projectId/references", (req, res) => {
 router.post("/projects/:projectId/references", (req, res) => {
   const project = projects.find((p) => p.id === req.params.projectId);
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
-  const { title, url, note } = req.body;
+  const { title, url, note, fileName, fileType } = req.body;
   if (!title) { res.status(400).json({ error: "Title required" }); return; }
-  const ref: ProjectReference = { id: `r${refIdCounter++}`, projectId: req.params.projectId, title, url: url || undefined, note: note || "", addedAt: new Date().toISOString() };
+  const ref: ProjectReference = { id: `r${refIdCounter++}`, projectId: req.params.projectId, title, url: url || undefined, fileName: fileName || undefined, fileType: fileType || undefined, note: note || "", addedAt: new Date().toISOString() };
   references.push(ref); res.status(201).json(ref);
 });
 router.delete("/references/:id", (req, res) => {

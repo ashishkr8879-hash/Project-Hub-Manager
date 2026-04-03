@@ -14,7 +14,7 @@ export interface EditorFull extends Editor {
   password: string;
 }
 
-export type ProjectType = "ugc" | "branded" | "corporate" | "wedding" | "social_media" | "other";
+export type ProjectType = "ugc" | "ai_video" | "editing" | "branded" | "corporate" | "wedding" | "social_media" | "other";
 
 export interface Project {
   id: string;
@@ -36,7 +36,7 @@ export interface Client {
 
 export interface ProjectReference {
   id: string; projectId: string; title: string;
-  url?: string; note: string; addedAt: string;
+  url?: string; fileName?: string; fileType?: string; note: string; addedAt: string;
 }
 
 export interface Message {
@@ -157,6 +157,7 @@ export const fetchDashboardStats = () => apiFetch<DashboardStats>("/dashboard/st
 
 export interface CreateProjectPayload {
   clientId?: string; clientName: string; clientPhone?: string; clientEmail?: string;
+  clientBusinessType?: string; clientCity?: string;
   projectName: string; projectType: ProjectType;
   totalValue: number; modelCost?: number; totalDeliverables: number;
   editorId: string; deadline?: string; notes?: string; script?: string;
@@ -184,7 +185,7 @@ export const fetchCalendar = (month: string, editorId?: string) =>
 export const fetchProjectReferences = (projectId: string) =>
   apiFetch<ProjectReference[]>(`/projects/${projectId}/references`);
 
-export const addReference = (projectId: string, body: { title: string; url?: string; note: string }) =>
+export const addReference = (projectId: string, body: { title: string; url?: string; note: string; fileName?: string; fileType?: string }) =>
   apiFetch<ProjectReference>(`/projects/${projectId}/references`, { method: "POST", body: JSON.stringify(body) });
 
 export const deleteReference = (id: string) =>

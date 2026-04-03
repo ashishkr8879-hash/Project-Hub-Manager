@@ -65,16 +65,8 @@ export default function AdminProfileScreen() {
   const isLoading = profileLoading || clientsLoading || editorsLoading;
 
   function handleLogout() {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out", style: "destructive",
-        onPress: () => {
-          setCurrentUser(null);
-          router.replace("/login");
-        },
-      },
-    ]);
+    setCurrentUser(null);
+    router.replace("/login");
   }
 
   async function handleDeleteClient(client: Client) {

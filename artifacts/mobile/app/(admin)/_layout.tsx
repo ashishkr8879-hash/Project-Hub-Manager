@@ -33,7 +33,7 @@ function NativeAdminTabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="editorlist">
         <Icon sf={{ default: "person.badge.clock", selected: "person.badge.clock.fill" }} />
-        <Label>Editors</Label>
+        <Label>Team</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
@@ -106,7 +106,7 @@ function ClassicAdminTabLayout() {
           : <Feather name="bell" size={22} color={color} />,
       }} />
       <Tabs.Screen name="editorlist" options={{
-        title: "Editors",
+        title: "Team",
         tabBarIcon: ({ color }) => isIOS
           ? <SymbolView name="person.3" tintColor={color} size={24} />
           : <Feather name="user-check" size={22} color={color} />,

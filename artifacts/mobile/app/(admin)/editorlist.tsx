@@ -403,10 +403,10 @@ export default function EditorListScreen() {
           ListHeaderComponent={
             <View style={listStyles.listHeader}>
               <Text style={[listStyles.listHeaderTitle, { color: colors.foreground }]}>
-                {editors.length} editor{editors.length !== 1 ? "s" : ""}
+                {editors.length} team member{editors.length !== 1 ? "s" : ""}
               </Text>
               <Text style={[listStyles.listHeaderSub, { color: colors.mutedForeground }]}>
-                Tap any editor to view full analytics
+                Tap any member to view full analytics
               </Text>
             </View>
           }

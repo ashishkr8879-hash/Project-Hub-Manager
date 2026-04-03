@@ -3,25 +3,31 @@ import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useColors } from "@/hooks/useColors";
 import {
   fetchEditors,
   fetchEditorAnalytics,
+  fetchEditorVideos,
+  reviewVideo,
+  setRevision,
   type Editor,
   type EditorAnalytics,
   type ProjectWithRevenue,
+  type VideoSubmission,
 } from "@/hooks/useApi";
 
 const INR = (n: number) =>
@@ -65,13 +71,61 @@ const statStyles = StyleSheet.create({
 function EditorDetailModal({ editorId, onClose }: { editorId: string; onClose: () => void }) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [rejectingId, setRejectingId]   = useState<string | null>(null);
+  const [rejectNote, setRejectNote]     = useState("");
+  const [actioning, setActioning]       = useState<string | null>(null);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["editor-analytics", editorId],
     queryFn: () => fetchEditorAnalytics(editorId),
     enabled: !!editorId,
   });
+
+  const { data: videos = [], refetch: refetchVideos } = useQuery({
+    queryKey: ["editor-videos", editorId],
+    queryFn: () => fetchEditorVideos(editorId),
+    enabled: !!editorId,
+  });
+
+  async function handleApprove(v: VideoSubmission) {
+    setActioning(v.id);
+    try {
+      await reviewVideo(v.id, "approve");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await refetchVideos();
+      await queryClient.invalidateQueries({ queryKey: ["editor-analytics", editorId] });
+      await queryClient.invalidateQueries({ queryKey: ["pending-videos"] });
+    } catch { Alert.alert("Error", "Could not approve"); }
+    finally { setActioning(null); }
+  }
+
+  async function handleReject(v: VideoSubmission) {
+    if (!rejectNote.trim()) { Alert.alert("Required", "Please enter a rejection note for the editor."); return; }
+    setActioning(v.id);
+    try {
+      await reviewVideo(v.id, "reject", rejectNote.trim());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setRejectingId(null); setRejectNote("");
+      await refetchVideos();
+      await queryClient.invalidateQueries({ queryKey: ["editor-analytics", editorId] });
+      await queryClient.invalidateQueries({ queryKey: ["pending-videos"] });
+    } catch { Alert.alert("Error", "Could not reject"); }
+    finally { setActioning(null); }
+  }
+
+  async function handleRevision(v: VideoSubmission) {
+    setActioning(v.id);
+    try {
+      await setRevision(v.projectId, true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await refetchVideos();
+      await queryClient.invalidateQueries({ queryKey: ["editor-analytics", editorId] });
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+    } catch { Alert.alert("Error", "Could not request revision"); }
+    finally { setActioning(null); }
+  }
 
   const avatarColor = AVATAR_COLORS[editorId.charCodeAt(editorId.length - 1) % AVATAR_COLORS.length];
   const profit = profile?.stats.companyProfit ?? 0;
@@ -191,6 +245,118 @@ function EditorDetailModal({ editorId, onClose }: { editorId: string; onClose: (
               </View>
             </View>
 
+            {/* ── Submitted Files ─────────────────────────────────────────── */}
+            <Text style={[detailStyles.sectionTitle, { color: colors.foreground }]}>Submitted Files</Text>
+
+            {videos.length === 0 ? (
+              <View style={[detailStyles.emptyBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="upload" size={24} color={colors.mutedForeground} />
+                <Text style={[detailStyles.emptyText, { color: colors.mutedForeground }]}>No files uploaded yet</Text>
+              </View>
+            ) : (
+              videos.map((v) => {
+                const isPending  = v.status === "pending_review";
+                const isApproved = v.status === "approved";
+                const isRejected = v.status === "rejected";
+                const isRejectingThis = rejectingId === v.id;
+                const isActioning = actioning === v.id;
+
+                const statusColor = isApproved ? colors.success : isRejected ? "#ef4444" : colors.primary;
+                const statusLabel = isApproved ? "Approved" : isRejected ? "Rejected" : "Pending Review";
+                const statusIcon  = isApproved ? "check-circle" : isRejected ? "x-circle" : "clock";
+
+                return (
+                  <View key={v.id} style={[fileStyles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    {/* File info row */}
+                    <View style={fileStyles.fileRow}>
+                      <View style={[fileStyles.fileIcon, { backgroundColor: `${statusColor}18` }]}>
+                        <Feather name="film" size={18} color={statusColor} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[fileStyles.fileName, { color: colors.foreground }]} numberOfLines={1}>{v.fileName}</Text>
+                        <Text style={[fileStyles.fileMeta, { color: colors.mutedForeground }]}>
+                          {v.fileSize} · Deliverable #{v.deliverableIndex} · {new Date(v.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                        </Text>
+                      </View>
+                      <View style={[fileStyles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
+                        <Feather name={statusIcon as never} size={11} color={statusColor} />
+                        <Text style={[fileStyles.statusText, { color: statusColor }]}>{statusLabel}</Text>
+                      </View>
+                    </View>
+
+                    {/* Review note (if rejected) */}
+                    {isRejected && v.reviewNote ? (
+                      <View style={[fileStyles.noteBox, { backgroundColor: "#fef2f2", borderColor: "#fca5a5" }]}>
+                        <Feather name="alert-circle" size={12} color="#ef4444" />
+                        <Text style={[fileStyles.noteText, { color: "#b91c1c" }]}>{v.reviewNote}</Text>
+                      </View>
+                    ) : null}
+
+                    {/* Action buttons for pending files */}
+                    {isPending && !isRejectingThis && (
+                      <View style={fileStyles.actionRow}>
+                        <TouchableOpacity
+                          disabled={!!isActioning}
+                          onPress={() => handleApprove(v)}
+                          style={[fileStyles.actionBtn, { backgroundColor: `${colors.success}15`, borderColor: `${colors.success}40` }]}
+                        >
+                          {isActioning ? <ActivityIndicator size="small" color={colors.success} />
+                            : <><Feather name="check" size={14} color={colors.success} /><Text style={[fileStyles.actionBtnText, { color: colors.success }]}>Approve</Text></>}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          disabled={!!isActioning}
+                          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleRevision(v); }}
+                          style={[fileStyles.actionBtn, { backgroundColor: "#fef9c310", borderColor: "#fbbf2440" }]}
+                        >
+                          <Feather name="rotate-ccw" size={14} color="#d97706" />
+                          <Text style={[fileStyles.actionBtnText, { color: "#d97706" }]}>Revision</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          disabled={!!isActioning}
+                          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRejectingId(v.id); setRejectNote(""); }}
+                          style={[fileStyles.actionBtn, { backgroundColor: "#fef2f215", borderColor: "#fca5a540" }]}
+                        >
+                          <Feather name="x" size={14} color="#ef4444" />
+                          <Text style={[fileStyles.actionBtnText, { color: "#ef4444" }]}>Reject</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* Inline reject note form */}
+                    {isPending && isRejectingThis && (
+                      <View style={fileStyles.rejectForm}>
+                        <TextInput
+                          style={[fileStyles.rejectInput, { backgroundColor: colors.background, borderColor: "#fca5a5", color: colors.foreground }]}
+                          value={rejectNote}
+                          onChangeText={setRejectNote}
+                          placeholder="Reason for rejection (required)..."
+                          placeholderTextColor={colors.mutedForeground}
+                          multiline numberOfLines={2}
+                          autoFocus
+                        />
+                        <View style={fileStyles.rejectBtns}>
+                          <TouchableOpacity
+                            onPress={() => { setRejectingId(null); setRejectNote(""); }}
+                            style={[fileStyles.rejectCancelBtn, { borderColor: colors.border }]}
+                          >
+                            <Text style={[fileStyles.rejectCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            disabled={!!isActioning}
+                            onPress={() => handleReject(v)}
+                            style={[fileStyles.rejectConfirmBtn, { backgroundColor: "#ef4444" }]}
+                          >
+                            {isActioning ? <ActivityIndicator size="small" color="#fff" />
+                              : <Text style={fileStyles.rejectConfirmText}>Send Rejection</Text>}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            )}
+
             {/* Projects by Date */}
             <Text style={[detailStyles.sectionTitle, { color: colors.foreground }]}>Projects by Date</Text>
             {profile.projectsByDate.length === 0 ? (
@@ -278,6 +444,28 @@ const projectRowStyles = StyleSheet.create({
   revenue: { fontSize: 13, fontFamily: "Inter_700Bold" },
   revTag: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 },
   revTagText: { fontSize: 9, fontFamily: "Inter_600SemiBold", color: "#92400e" },
+});
+
+const fileStyles = StyleSheet.create({
+  card: { borderRadius: 14, borderWidth: 1, overflow: "hidden", marginBottom: 0, padding: 12, gap: 10 },
+  fileRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  fileIcon: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  fileName: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  fileMeta: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  statusBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, flexShrink: 0 },
+  statusText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  noteBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, padding: 8, borderRadius: 8, borderWidth: 1 },
+  noteText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 16 },
+  actionRow: { flexDirection: "row", gap: 6 },
+  actionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9, borderRadius: 10, borderWidth: 1 },
+  actionBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  rejectForm: { gap: 8 },
+  rejectInput: { borderWidth: 1, borderRadius: 10, padding: 10, fontSize: 13, fontFamily: "Inter_400Regular", minHeight: 60, textAlignVertical: "top" },
+  rejectBtns: { flexDirection: "row", gap: 8 },
+  rejectCancelBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 1, alignItems: "center" },
+  rejectCancelText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  rejectConfirmBtn: { flex: 2, padding: 10, borderRadius: 10, alignItems: "center" },
+  rejectConfirmText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
 });
 
 const detailStyles = StyleSheet.create({

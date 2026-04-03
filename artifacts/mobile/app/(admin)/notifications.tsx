@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -63,10 +64,26 @@ export default function AdminNotificationsScreen() {
     }
   }, [notifications, queryClient]);
 
+  function handleNotifTap(item: AppNotification) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (item.type === "video_submitted") {
+      setTab("pending_reviews");
+      return;
+    }
+    if (item.projectId) {
+      router.push({ pathname: "/(admin)/projects", params: { openProjectId: item.projectId } } as never);
+    }
+  }
+
   function renderNotif({ item }: { item: AppNotification }) {
     const cfg = ICON_MAP[item.type] ?? ICON_MAP.project_assigned;
+    const tappable = item.type === "video_submitted" || !!item.projectId;
     return (
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: item.read ? colors.border : colors.primary, borderLeftWidth: item.read ? 1 : 3 }]}>
+      <TouchableOpacity
+        activeOpacity={tappable ? 0.7 : 1}
+        onPress={tappable ? () => handleNotifTap(item) : undefined}
+        style={[styles.card, { backgroundColor: colors.card, borderColor: item.read ? colors.border : colors.primary, borderLeftWidth: item.read ? 1 : 3 }]}
+      >
         <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
           <Feather name={cfg.icon} size={18} color={cfg.color} />
         </View>
@@ -75,8 +92,11 @@ export default function AdminNotificationsScreen() {
           <Text style={[styles.cardMsg, { color: colors.mutedForeground }]}>{item.message}</Text>
           <Text style={[styles.cardTime, { color: colors.mutedForeground }]}>{formatTimeAgo(item.createdAt)}</Text>
         </View>
-        {!item.read && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
-      </View>
+        <View style={styles.cardRight}>
+          {!item.read && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
+          {tappable && <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
+        </View>
+      </TouchableOpacity>
     );
   }
 
@@ -289,7 +309,8 @@ const styles = StyleSheet.create({
   cardMsg: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   cardMeta: { fontSize: 11, fontFamily: "Inter_400Regular" },
   cardTime: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 4, flexShrink: 0 },
+  cardRight: { alignItems: "center", gap: 4, flexShrink: 0 },
+  dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   reviewBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: "center" },
   reviewBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" },
   empty: { alignItems: "center", padding: 40, borderRadius: 16, borderWidth: 1, gap: 8, margin: 16 },

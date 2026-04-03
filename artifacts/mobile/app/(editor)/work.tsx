@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -37,6 +38,7 @@ export default function WorkScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const queryClient = useQueryClient();
   const editorId = currentUser?.editorId ?? currentUser?.id ?? "";
+  const { openProjectId, openChat } = useLocalSearchParams<{ openProjectId?: string; openChat?: string }>();
   const [tab, setTab] = useState<Tab>("active");
   const [updating, setUpdating] = useState<string | null>(null);
   const [uploadModal, setUploadModal] = useState<Project | null>(null);
@@ -48,6 +50,20 @@ export default function WorkScreen() {
     enabled: !!editorId,
     refetchInterval: 20000,
   });
+
+  // Deep-link: auto-open project/chat from notification tap
+  useEffect(() => {
+    if (openProjectId && projects.length > 0) {
+      const found = projects.find((p) => p.id === openProjectId);
+      if (found) {
+        if (openChat === "1") {
+          setChatProject(found);
+        } else {
+          setUploadModal(found);
+        }
+      }
+    }
+  }, [openProjectId, openChat, projects]);
 
   const { data: allVideos = [], refetch: refetchVideos } = useQuery({
     queryKey: ["editor-videos", editorId],

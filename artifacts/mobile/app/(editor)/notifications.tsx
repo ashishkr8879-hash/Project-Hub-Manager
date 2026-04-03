@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useEffect } from "react";
 import {
   FlatList,
   Platform,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -44,12 +46,26 @@ export default function EditorNotificationsScreen() {
     }
   }, [notifications, userId, queryClient]);
 
+  function handleNotifTap(item: AppNotification) {
+    if (!item.projectId) return;
+    const openChat = item.type === "message_received" || item.type === "revision_requested";
+    router.push({
+      pathname: "/(editor)/work",
+      params: { openProjectId: item.projectId, openChat: openChat ? "1" : "0" },
+    } as never);
+  }
+
   function renderItem({ item }: { item: AppNotification }) {
     const cfg = ICON_MAP[item.type] ?? ICON_MAP.project_assigned;
     const timeAgo = formatTimeAgo(item.createdAt);
+    const tappable = !!item.projectId;
 
     return (
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: item.read ? colors.border : colors.primary, borderLeftWidth: item.read ? 1 : 3 }]}>
+      <TouchableOpacity
+        activeOpacity={tappable ? 0.7 : 1}
+        onPress={tappable ? () => handleNotifTap(item) : undefined}
+        style={[styles.card, { backgroundColor: colors.card, borderColor: item.read ? colors.border : colors.primary, borderLeftWidth: item.read ? 1 : 3 }]}
+      >
         <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
           <Feather name={cfg.icon} size={18} color={cfg.color} />
         </View>
@@ -58,8 +74,11 @@ export default function EditorNotificationsScreen() {
           <Text style={[styles.cardMsg, { color: colors.mutedForeground }]}>{item.message}</Text>
           <Text style={[styles.cardTime, { color: colors.mutedForeground }]}>{timeAgo}</Text>
         </View>
-        {!item.read && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
-      </View>
+        <View style={styles.cardRight}>
+          {!item.read && <View style={[styles.dot, { backgroundColor: colors.primary }]} />}
+          {tappable && <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
+        </View>
+      </TouchableOpacity>
     );
   }
 
@@ -102,7 +121,8 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   cardMsg: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
   cardTime: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 4, flexShrink: 0 },
+  cardRight: { alignItems: "center", gap: 4, flexShrink: 0 },
+  dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   empty: { alignItems: "center", padding: 40, borderRadius: 16, borderWidth: 1, gap: 8, margin: 16 },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
 });

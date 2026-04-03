@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -41,6 +42,7 @@ export default function ProjectsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const { openProjectId } = useLocalSearchParams<{ openProjectId?: string }>();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const [search, setSearch] = useState("");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -49,6 +51,14 @@ export default function ProjectsScreen() {
     queryKey: ["projects"],
     queryFn: fetchProjects,
   });
+
+  // Deep-link: auto-open project from notification tap
+  useEffect(() => {
+    if (openProjectId && projects.length > 0) {
+      const found = projects.find((p) => p.id === openProjectId);
+      if (found) setSelectedProject(found);
+    }
+  }, [openProjectId, projects]);
 
   const filtered = projects.filter((p) => {
     const matchFilter =

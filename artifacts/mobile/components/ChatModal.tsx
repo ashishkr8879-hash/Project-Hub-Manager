@@ -8,6 +8,7 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   StyleSheet,
@@ -71,8 +72,9 @@ function fileIcon(type: string): React.ComponentProps<typeof Feather>["name"] {
   return "file";
 }
 
-// local store for audio URIs (keyed by message id or temp key)
+// local store for audio/file URIs (keyed by message id or temp key)
 const localAudioStore: Map<string, string> = new Map();
+const localFileStore: Map<string, string> = new Map();
 
 export function ChatModal({ visible, onClose, project, currentUserId, currentUserName, role }: Props) {
   const colors = useColors();
@@ -300,9 +302,12 @@ export function ChatModal({ visible, onClose, project, currentUserId, currentUse
         text: msgText, fileName, fileSize, fileType, isAudio,
       });
 
-      // store audio uri locally for playback
+      // store audio/file uri locally for playback/opening
       if (hasAudio && pendingAudio) {
         localAudioStore.set(sent.id, pendingAudio.uri);
+      }
+      if (hasFile && pendingFile?.uri) {
+        localFileStore.set(sent.id, pendingFile.uri);
       }
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -400,6 +405,22 @@ export function ChatModal({ visible, onClose, project, currentUserId, currentUse
                   <Text style={[styles.attachName, { color: isMe ? "#fff" : colors.foreground }]} numberOfLines={1}>{item.fileName}</Text>
                   {item.fileSize && <Text style={[styles.attachSize, { color: isMe ? "rgba(255,255,255,0.65)" : colors.mutedForeground }]}>{item.fileSize}</Text>}
                 </View>
+                {/* Open / Download button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    const localUri = localFileStore.get(item.id);
+                    if (localUri) {
+                      Linking.openURL(localUri).catch(() =>
+                        Alert.alert("Cannot open", "Could not open this file on your device.")
+                      );
+                    } else {
+                      Alert.alert("File info", `${item.fileName}\n${item.fileSize ?? ""}\n\nThis file was sent from another device and cannot be opened here.`);
+                    }
+                  }}
+                  style={[styles.attachOpenBtn, { backgroundColor: isMe ? "rgba(255,255,255,0.22)" : `${accentColor}18` }]}
+                >
+                  <Feather name="download" size={14} color={isMe ? "#fff" : accentColor} />
+                </TouchableOpacity>
               </View>
             </>
           ) : (
@@ -614,6 +635,7 @@ const styles = StyleSheet.create({
   attachBubble: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, marginTop: 2 },
   attachName: { fontSize: 12, fontFamily: "Inter_500Medium" },
   attachSize: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  attachOpenBtn: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   audioBubble: { flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderRadius: 12, marginVertical: 2 },
   audioPlayBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   audioLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold" },

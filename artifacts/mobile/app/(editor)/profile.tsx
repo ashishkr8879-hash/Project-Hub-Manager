@@ -165,18 +165,6 @@ export default function EditorProfileScreen() {
               <StatBox label="In Review"         value={String(profile.stats?.pendingReviewVideos ?? 0)} color={colors.warning}       colors={colors} />
             </View>
 
-            {/* ── Earnings ───────────────────────────────────────────────── */}
-            <View style={[styles.earningsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={[styles.earningsIcon, { backgroundColor: `${colors.success}18` }]}>
-                <Feather name="dollar-sign" size={24} color={colors.success} />
-              </View>
-              <View>
-                <Text style={[styles.earningsLabel, { color: colors.mutedForeground }]}>Total Earnings (Completed)</Text>
-                <Text style={[styles.earningsValue, { color: colors.foreground }]}>
-                  ₹{(profile.stats?.totalEarnings ?? 0).toLocaleString()}
-                </Text>
-              </View>
-            </View>
 
             {/* ── Recent Projects ────────────────────────────────────────── */}
             {(profile.recentProjects?.length ?? 0) > 0 && (

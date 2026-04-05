@@ -37,12 +37,97 @@ import {
   type ProjectReference,
 } from "@/hooks/useApi";
 
-type Tab = "active" | "rejected";
+type Tab = "active" | "approved" | "rejected";
+
+type SpecConfig = {
+  uploadLabel: string;
+  uploadPlaceholder: string;
+  uploadIcon: React.ComponentProps<typeof Feather>["name"];
+  tabLabel: string;
+  approvedLabel: string;
+  rejectedLabel: string;
+  workBannerIcon: React.ComponentProps<typeof Feather>["name"];
+  workBannerColor: string;
+  workBannerTitle: string;
+  workBannerSub: string;
+};
+
+function getSpecConfig(spec?: string): SpecConfig {
+  switch (spec) {
+    case "Graphic Designer":
+      return {
+        uploadLabel: "Submit Design",
+        uploadPlaceholder: "e.g. logo_v3_final.png",
+        uploadIcon: "image",
+        tabLabel: "Active Work",
+        approvedLabel: "Approved Designs",
+        rejectedLabel: "Revision Requested",
+        workBannerIcon: "layers",
+        workBannerColor: "#ec4899",
+        workBannerTitle: "Design Studio",
+        workBannerSub: "Upload PNGs, PSDs, AI files & brand assets",
+      };
+    case "Social Media Manager":
+      return {
+        uploadLabel: "Submit Content",
+        uploadPlaceholder: "e.g. reel_march_week2.mp4",
+        uploadIcon: "instagram",
+        tabLabel: "Active Campaigns",
+        approvedLabel: "Published Content",
+        rejectedLabel: "Rejected Posts",
+        workBannerIcon: "share-2",
+        workBannerColor: "#0ea5e9",
+        workBannerTitle: "Content Pipeline",
+        workBannerSub: "Submit posts, reels, carousels & stories",
+      };
+    case "Website Development":
+      return {
+        uploadLabel: "Submit Milestone",
+        uploadPlaceholder: "e.g. homepage_v2_staging.zip",
+        uploadIcon: "code",
+        tabLabel: "Active Projects",
+        approvedLabel: "Approved Milestones",
+        rejectedLabel: "Rejected Builds",
+        workBannerIcon: "monitor",
+        workBannerColor: "#10b981",
+        workBannerTitle: "Dev Dashboard",
+        workBannerSub: "Submit builds, staging links & code packages",
+      };
+    case "Ads Setup":
+      return {
+        uploadLabel: "Submit Campaign",
+        uploadPlaceholder: "e.g. fb_ads_may_campaign.pdf",
+        uploadIcon: "bar-chart-2",
+        tabLabel: "Active Campaigns",
+        approvedLabel: "Approved Campaigns",
+        rejectedLabel: "Rejected Ads",
+        workBannerIcon: "target",
+        workBannerColor: "#f97316",
+        workBannerTitle: "Ads Manager",
+        workBannerSub: "Submit ad creatives, reports & campaign decks",
+      };
+    default: // Video Editor
+      return {
+        uploadLabel: "Upload Video",
+        uploadPlaceholder: "e.g. brand_video_v2.mp4",
+        uploadIcon: "video",
+        tabLabel: "Active Work",
+        approvedLabel: "Approved Videos",
+        rejectedLabel: "Rejected Videos",
+        workBannerIcon: "video",
+        workBannerColor: "#7c3aed",
+        workBannerTitle: "Video Studio",
+        workBannerSub: "Upload MP4s, edits, reels & ad cuts for review",
+      };
+  }
+}
 
 export default function WorkScreen() {
   const colors = useColors();
   const { currentUser } = useApp();
   const theme = useEditorTheme(currentUser?.specialization);
+  const spec = currentUser?.specialization;
+  const specConfig = getSpecConfig(spec);
   const insets = useSafeAreaInsets();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const queryClient = useQueryClient();
@@ -81,6 +166,7 @@ export default function WorkScreen() {
   });
 
   const rejectedVideos = allVideos.filter((v) => v.status === "rejected");
+  const approvedVideos = allVideos.filter((v) => v.status === "approved");
   const activeProjects = projects.filter((p) => p.status !== "completed");
 
   async function handleMarkInProgress(project: Project) {
@@ -265,21 +351,91 @@ export default function WorkScreen() {
     );
   }
 
+  function renderApproved({ item }: { item: VideoSubmission }) {
+    const project = projects.find((p) => p.id === item.projectId);
+    const reviewedDate = item.reviewedAt
+      ? new Date(item.reviewedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+      : new Date(item.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    return (
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: "#dcfce7", borderLeftWidth: 4, borderLeftColor: colors.success }]}>
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitles}>
+            <Text style={[styles.projectName, { color: colors.foreground }]} numberOfLines={1}>{item.fileName}</Text>
+            <Text style={[styles.clientName, { color: colors.mutedForeground }]}>{project?.projectName ?? item.projectId}</Text>
+          </View>
+          <View style={[styles.rejBadge, { backgroundColor: "#dcfce7" }]}>
+            <Feather name="check-circle" size={11} color={colors.success} />
+            <Text style={[styles.rejBadgeText, { color: "#15803d" }]}>Approved</Text>
+          </View>
+        </View>
+
+        <View style={[styles.noteRow, { backgroundColor: "#f0fdf4" }]}>
+          <Feather name="thumbs-up" size={12} color={colors.success} />
+          <Text style={[styles.noteText, { color: "#15803d" }]}>Admin approved this submission</Text>
+        </View>
+
+        <View style={styles.metaRow}>
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+            <Feather name="hard-drive" size={11} /> {item.fileSize}
+          </Text>
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+            <Feather name="calendar" size={11} /> Deliverable #{item.deliverableIndex}
+          </Text>
+          <Text style={[styles.metaText, { color: colors.success }]}>
+            <Feather name="check" size={11} /> {reviewedDate}
+          </Text>
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(item.fileName).catch(() => Alert.alert("Open File", `File: ${item.fileName}\nSize: ${item.fileSize}\n\nThis file was submitted and approved. Open your file manager to locate it.`))}
+            style={[styles.actionBtn, { backgroundColor: `${colors.success}15`, borderColor: `${colors.success}30`, flex: 1 }]}
+          >
+            <Feather name="download" size={14} color={colors.success} />
+            <Text style={[styles.actionText, { color: colors.success }]}>Open / Play</Text>
+          </TouchableOpacity>
+          {project && (
+            <TouchableOpacity onPress={() => setChatProject(project)}
+              style={[styles.actionBtn, { backgroundColor: `${theme.primary}12`, borderColor: `${theme.primary}25` }]}>
+              <Feather name="message-circle" size={14} color={theme.primary} />
+              <Text style={[styles.actionText, { color: theme.primary }]}>Chat</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Specialization banner */}
+      <View style={[styles.specBanner, { backgroundColor: `${specConfig.workBannerColor}12`, borderBottomColor: `${specConfig.workBannerColor}30` }]}>
+        <View style={[styles.specBannerIcon, { backgroundColor: `${specConfig.workBannerColor}20` }]}>
+          <Feather name={specConfig.workBannerIcon} size={18} color={specConfig.workBannerColor} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.specBannerTitle, { color: specConfig.workBannerColor }]}>{specConfig.workBannerTitle}</Text>
+          <Text style={[styles.specBannerSub, { color: colors.mutedForeground }]}>{specConfig.workBannerSub}</Text>
+        </View>
+        <View style={[styles.specBannerCount, { backgroundColor: `${specConfig.workBannerColor}18` }]}>
+          <Text style={[styles.specBannerCountText, { color: specConfig.workBannerColor }]}>{activeProjects.length} active</Text>
+        </View>
+      </View>
+
       {/* Tab bar */}
       <View style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        {(["active", "rejected"] as Tab[]).map((t) => {
-          const active = tab === t;
-          const count = t === "active" ? activeProjects.length : rejectedVideos.length;
+        {([
+          { key: "active" as Tab, label: specConfig.tabLabel, count: activeProjects.length, badgeBg: colors.secondary, badgeText: colors.primary },
+          { key: "approved" as Tab, label: specConfig.approvedLabel, count: approvedVideos.length, badgeBg: "#dcfce7", badgeText: "#15803d" },
+          { key: "rejected" as Tab, label: specConfig.rejectedLabel, count: rejectedVideos.length, badgeBg: "#fee2e2", badgeText: "#b91c1c" },
+        ]).map(({ key, label, count, badgeBg, badgeText }) => {
+          const active = tab === key;
           return (
-            <TouchableOpacity key={t} onPress={() => setTab(t)} style={[styles.tabBtn, active && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}>
-              <Text style={[styles.tabText, { color: active ? theme.primary : colors.mutedForeground }]}>
-                {t === "active" ? "Active Work" : "Rejected Videos"}
-              </Text>
+            <TouchableOpacity key={key} onPress={() => setTab(key)} style={[styles.tabBtn, active && { borderBottomColor: theme.primary, borderBottomWidth: 2 }]}>
+              <Text style={[styles.tabText, { color: active ? theme.primary : colors.mutedForeground }]} numberOfLines={1}>{label}</Text>
               {count > 0 && (
-                <View style={[styles.tabBadge, { backgroundColor: t === "rejected" ? "#fee2e2" : colors.secondary }]}>
-                  <Text style={[styles.tabBadgeText, { color: t === "rejected" ? "#b91c1c" : colors.primary }]}>{count}</Text>
+                <View style={[styles.tabBadge, { backgroundColor: badgeBg }]}>
+                  <Text style={[styles.tabBadgeText, { color: badgeText }]}>{count}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -298,12 +454,28 @@ export default function WorkScreen() {
           ListEmptyComponent={
             <View style={[styles.empty, { borderColor: colors.border }]}>
               <Feather name="inbox" size={32} color={colors.mutedForeground} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No active projects</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No active projects assigned</Text>
             </View>
           }
           refreshing={isLoading}
           onRefresh={refetch}
           scrollEnabled={!!activeProjects.length}
+        />
+      ) : tab === "approved" ? (
+        <FlatList
+          data={approvedVideos}
+          keyExtractor={(v) => v.id}
+          renderItem={renderApproved}
+          contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad + 100 }]}
+          ListEmptyComponent={
+            <View style={[styles.empty, { borderColor: colors.border }]}>
+              <Feather name="award" size={32} color={colors.success} />
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No approved submissions yet</Text>
+            </View>
+          }
+          refreshing={isLoading}
+          onRefresh={() => { refetch(); refetchVideos(); }}
+          scrollEnabled={!!approvedVideos.length}
         />
       ) : (
         <FlatList
@@ -314,7 +486,7 @@ export default function WorkScreen() {
           ListEmptyComponent={
             <View style={[styles.empty, { borderColor: colors.border }]}>
               <Feather name="check-circle" size={32} color={colors.success} />
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No rejected videos</Text>
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>No rejected submissions</Text>
             </View>
           }
           refreshing={isLoading}
@@ -329,6 +501,7 @@ export default function WorkScreen() {
           editorId={editorId}
           colors={colors}
           insets={insets}
+          specConfig={specConfig}
           onClose={() => setUploadModal(null)}
           onSuccess={() => {
             setUploadModal(null);
@@ -353,12 +526,13 @@ export default function WorkScreen() {
 }
 
 function UploadModal({
-  project, editorId, colors, insets, onClose, onSuccess,
+  project, editorId, colors, insets, specConfig, onClose, onSuccess,
 }: {
   project: Project;
   editorId: string;
   colors: ReturnType<typeof useColors>;
   insets: ReturnType<typeof import("react-native-safe-area-context").useSafeAreaInsets>;
+  specConfig: SpecConfig;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -480,7 +654,7 @@ function UploadModal({
                     color={active ? "#fff" : colors.mutedForeground}
                   />
                   <Text style={[styles.mTabText, { color: active ? "#fff" : colors.mutedForeground }]}>
-                    {t === "upload" ? "Upload Video" : `References (${references.length})`}
+                    {t === "upload" ? specConfig.uploadLabel : `References (${references.length})`}
                   </Text>
                 </TouchableOpacity>
               );
@@ -490,10 +664,31 @@ function UploadModal({
           {/* Upload tab */}
           {modalTab === "upload" && (
             <View style={styles.modalFields}>
+              {/* Pick file from device */}
+              <TouchableOpacity
+                onPress={async () => {
+                  try {
+                    const res = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
+                    if (!res.canceled && res.assets[0]) {
+                      const a = res.assets[0];
+                      setFileName(a.name);
+                      setFileSize(a.size ? `${(a.size / (1024 * 1024)).toFixed(1)} MB` : "Unknown");
+                    }
+                  } catch {}
+                }}
+                style={[styles.filePickBtn, { backgroundColor: fileName ? `${theme.primary}08` : colors.muted, borderColor: fileName ? theme.primary : colors.border }]}
+              >
+                <Feather name={specConfig.uploadIcon} size={18} color={fileName ? theme.primary : colors.mutedForeground} />
+                <Text style={[styles.filePickText, { color: fileName ? colors.foreground : colors.mutedForeground }]} numberOfLines={1}>
+                  {fileName || `Tap to pick a file (${specConfig.uploadLabel})`}
+                </Text>
+                {fileName ? <Feather name="check-circle" size={16} color={theme.primary} /> : <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
+              </TouchableOpacity>
+
               <View style={styles.field}>
                 <Text style={[styles.fieldLabel, { color: colors.foreground }]}>File Name</Text>
                 <TextInput style={[styles.modalInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                  value={fileName} onChangeText={setFileName} placeholder="e.g. brand_video_v2.mp4" placeholderTextColor={colors.mutedForeground} />
+                  value={fileName} onChangeText={setFileName} placeholder={specConfig.uploadPlaceholder} placeholderTextColor={colors.mutedForeground} />
               </View>
               <View style={styles.field}>
                 <Text style={[styles.fieldLabel, { color: colors.foreground }]}>File Size</Text>
@@ -508,7 +703,7 @@ function UploadModal({
               <TouchableOpacity onPress={handleSubmitVideo} disabled={uploading}
                 style={[styles.uploadBtn, { backgroundColor: uploading ? colors.muted : theme.primary }]}>
                 {uploading ? <ActivityIndicator color="#fff" />
-                  : <><Feather name="upload" size={16} color="#fff" /><Text style={styles.uploadBtnText}>Submit to Admin</Text></>}
+                  : <><Feather name={specConfig.uploadIcon} size={16} color="#fff" /><Text style={styles.uploadBtnText}>Submit to Admin</Text></>}
               </TouchableOpacity>
             </View>
           )}
@@ -616,8 +811,8 @@ function UploadModal({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   tabBar: { flexDirection: "row", borderBottomWidth: 1 },
-  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 14, gap: 6 },
-  tabText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  tabBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 12, gap: 4 },
+  tabText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   tabBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   tabBadgeText: { fontSize: 11, fontFamily: "Inter_700Bold" },
   loader: { flex: 1, alignItems: "center", justifyContent: "center" },
@@ -640,8 +835,14 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   actionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 10, borderRadius: 10, borderWidth: 1, gap: 6 },
   actionText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  rejBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, alignSelf: "flex-start" },
+  rejBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, alignSelf: "flex-start" },
   rejBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  specBanner: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
+  specBannerIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  specBannerTitle: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  specBannerSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  specBannerCount: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  specBannerCountText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   empty: { alignItems: "center", padding: 40, borderRadius: 16, borderWidth: 1, gap: 8 },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
@@ -666,10 +867,11 @@ const styles = StyleSheet.create({
   addRefBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
   addRefForm: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10, marginBottom: 12 },
   refFormHeader: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  filePickBtn: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12, padding: 12, gap: 10 },
+  filePickBtn: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12, padding: 12, gap: 10, marginBottom: 4 },
   filePickName: { fontSize: 13, fontFamily: "Inter_500Medium" },
   filePickSize: { fontSize: 11, fontFamily: "Inter_400Regular" },
   filePickPlaceholder: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  filePickText: { flex: 1, fontSize: 13, fontFamily: "Inter_400Regular" },
   refInput: { padding: 12, borderRadius: 12, borderWidth: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   refSaveBtn: { alignItems: "center", padding: 12, borderRadius: 12 },
   refSaveBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },

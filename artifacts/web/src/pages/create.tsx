@@ -29,6 +29,20 @@ const SPEC_COLORS: Record<string, string> = {
   "Social Media Manager": "#0ea5e9", "Website Development": "#10b981", "Ads Setup": "#f97316",
 };
 
+const TYPE_TO_SPEC: Record<ProjectType, string | null> = {
+  ugc: "Video Editor",
+  ai_video: "Video Editor",
+  editing: "Video Editor",
+  branded: "Video Editor",
+  corporate: "Video Editor",
+  wedding: "Video Editor",
+  social_media: "Social Media Manager",
+  graphic_design: "Graphic Designer",
+  ads_setup: "Ads Setup",
+  website: "Website Development",
+  other: null,
+};
+
 export default function Create() {
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
@@ -62,6 +76,10 @@ export default function Create() {
   const selectedEditor = editors.find((e) => e.id === form.editorId);
 
   const netProfit = (+(form.totalValue || 0)) - (+(form.modelCost || 0)) - (+(form.editorCost || 0));
+
+  const requiredSpec = selectedType ? TYPE_TO_SPEC[selectedType] : null;
+  const filteredEditors = requiredSpec ? editors.filter((e) => e.specialization === requiredSpec) : editors;
+  const assignLabel = requiredSpec ?? "Team Member";
 
   async function handleClientNext() {
     setError("");
@@ -318,27 +336,40 @@ export default function Create() {
             </div>
           </div>
 
-          {/* Assign Editor */}
+          {/* Assign Team Member */}
           <div>
-            <label className="text-xs text-zinc-500 block mb-2">Assign Editor *</label>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
-              {editors.map((ed) => {
-                const specColor = SPEC_COLORS[ed.specialization] ?? "#6b7280";
-                const initials = ed.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-                return (
-                  <button key={ed.id} onClick={() => setForm(f => ({ ...f, editorId: ed.id }))} className={`w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all ${form.editorId === ed.id ? "border-blue-500 bg-blue-500/10" : "border-zinc-800/60 bg-zinc-900 hover:border-zinc-700"}`}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ backgroundColor: specColor + "25" }}>
-                      <span style={{ color: specColor }}>{initials}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">{ed.name}</p>
-                      <p className="text-xs font-medium" style={{ color: specColor }}>{ed.specialization}</p>
-                    </div>
-                    {form.editorId === ed.id && <Check className="w-4 h-4 text-blue-400 flex-shrink-0" />}
-                  </button>
-                );
-              })}
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-zinc-500">Assign {assignLabel} *</label>
+              {requiredSpec && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: (SPEC_COLORS[requiredSpec] ?? "#6b7280") + "20", color: SPEC_COLORS[requiredSpec] ?? "#6b7280" }}>
+                  {filteredEditors.length} available
+                </span>
+              )}
             </div>
+            {filteredEditors.length === 0 ? (
+              <div className="text-xs text-zinc-500 bg-zinc-900 border border-zinc-800/60 rounded-xl px-3 py-3 text-center">
+                No {assignLabel} found. Add team members in Settings.
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {filteredEditors.map((ed) => {
+                  const specColor = SPEC_COLORS[ed.specialization] ?? "#6b7280";
+                  const edInitials = ed.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+                  return (
+                    <button key={ed.id} onClick={() => setForm((f) => ({ ...f, editorId: ed.id }))} className={`w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all ${form.editorId === ed.id ? "border-blue-500 bg-blue-500/10" : "border-zinc-800/60 bg-zinc-900 hover:border-zinc-700"}`}>
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ backgroundColor: specColor + "25" }}>
+                        <span style={{ color: specColor }}>{edInitials}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{ed.name}</p>
+                        <p className="text-xs font-medium" style={{ color: specColor }}>{ed.specialization}</p>
+                      </div>
+                      {form.editorId === ed.id && <Check className="w-4 h-4 text-blue-400 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Notes */}

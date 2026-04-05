@@ -14,7 +14,8 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
 
 function ClientDetailModal({ client, onClose }: { client: Client; onClose: () => void }) {
   const qc = useQueryClient();
-  const { data: clientProjects = [] } = useGetClientProjects(client.id);
+  const { data: clientData } = useGetClientProjects(client.id);
+  const clientProjects = (clientData as any)?.projects ?? [];
   const deleteMut = useDeleteClient();
   const [showDelete, setShowDelete] = useState(false);
   const [editingPayment, setEditingPayment] = useState<string | null>(null);

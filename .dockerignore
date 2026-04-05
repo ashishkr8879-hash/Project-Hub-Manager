@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+**/dist
+**/.expo
+**/.metro-cache
+**/.turbo
+**/static-build
+.env
+*.log
+.DS_Store

@@ -202,6 +202,24 @@
   --destructive-border: hsl(var(--destructive));
 }
 
+/* ── Light mode via CSS invert (dark-first app) ─────────────────────────────── */
+html.light-mode {
+  filter: invert(1) hue-rotate(180deg);
+  background: #fff;
+}
+
+/* Re-invert media so images/videos look correct */
+html.light-mode img,
+html.light-mode video,
+html.light-mode [data-no-invert] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Smooth transition when switching themes */
+html {
+  transition: filter 0.25s ease;
+}
+
 @layer base {
   * {
     @apply border-border;

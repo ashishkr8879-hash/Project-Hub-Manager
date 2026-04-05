@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useTheme } from "@/hooks/use-theme";
 import { useListNotifications, useListPendingVideos } from "@workspace/api-client-react";
 import {
-  LayoutDashboard, Briefcase, Users, UsersRound, Bell, CalendarDays, Settings, LogOut, PlusCircle,
+  LayoutDashboard, Briefcase, Users, UsersRound, Bell, CalendarDays, Settings, LogOut, PlusCircle, Sun, Moon,
 } from "lucide-react";
 
 interface LayoutProps { children: React.ReactNode; }
@@ -21,6 +22,7 @@ const navItems = [
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const { logout, user } = useAuth();
+  const { isDark, toggle } = useTheme();
 
   const { data: notifications = [] } = useListNotifications("admin", { query: { refetchInterval: 15000 } });
   const { data: pendingVideos = [] } = useListPendingVideos({ query: { refetchInterval: 20000 } });
@@ -89,6 +91,16 @@ export default function Layout({ children }: LayoutProps) {
               <p className="text-xs font-semibold text-white truncate">{user?.name || "Admin"}</p>
               <p className="text-[10px] text-zinc-500 capitalize">{user?.role || "admin"}</p>
             </div>
+            {/* Theme toggle */}
+            <button
+              onClick={toggle}
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-zinc-700/60 flex-shrink-0"
+            >
+              {isDark
+                ? <Sun className="w-3.5 h-3.5 text-amber-400" />
+                : <Moon className="w-3.5 h-3.5 text-blue-400" />}
+            </button>
           </div>
           <button
             onClick={logout}

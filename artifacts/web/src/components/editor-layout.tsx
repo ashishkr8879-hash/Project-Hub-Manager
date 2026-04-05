@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useTheme } from "@/hooks/use-theme";
 import { useListNotifications } from "@workspace/api-client-react";
-import { LayoutDashboard, Briefcase, Bell, User, LogOut } from "lucide-react";
+import { LayoutDashboard, Briefcase, Bell, User, LogOut, Sun, Moon } from "lucide-react";
 
 interface EditorLayoutProps { children: React.ReactNode; }
 
@@ -23,6 +24,7 @@ const SPEC_COLORS: Record<string, string> = {
 export default function EditorLayout({ children }: EditorLayoutProps) {
   const [location] = useLocation();
   const { logout, user } = useAuth();
+  const { isDark, toggle } = useTheme();
   const editorId = (user as any)?.editorId ?? user?.id ?? "";
   const spec = (user as any)?.specialization ?? "Team Member";
   const specColor = SPEC_COLORS[spec] ?? "#7c3aed";
@@ -80,6 +82,16 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
               <p className="text-xs font-semibold text-white truncate">{user?.name || "Team Member"}</p>
               <p className="text-[10px] text-zinc-500 truncate">{spec}</p>
             </div>
+            {/* Theme toggle */}
+            <button
+              onClick={toggle}
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-zinc-700/60 flex-shrink-0"
+            >
+              {isDark
+                ? <Sun className="w-3.5 h-3.5 text-amber-400" />
+                : <Moon className="w-3.5 h-3.5" style={{ color: specColor }} />}
+            </button>
           </div>
           <button
             onClick={logout}

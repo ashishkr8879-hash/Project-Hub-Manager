@@ -81,6 +81,8 @@ export default function Create() {
   const filteredEditors = requiredSpec ? editors.filter((e) => e.specialization === requiredSpec) : editors;
   const assignLabel = requiredSpec ?? "Team Member";
 
+  const showModelEditorCost = selectedType === "ugc" || selectedType === "ai_video" || selectedType === "editing";
+
   async function handleClientNext() {
     setError("");
     if (clientMode === "existing") {
@@ -299,23 +301,30 @@ export default function Create() {
           </div>
 
           {/* Financial */}
-          <div className="grid grid-cols-3 gap-3">
+          {showModelEditorCost ? (
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1">Total Value (₹) *</label>
+                <input type="number" value={form.totalValue} onChange={(e) => setForm(f => ({ ...f, totalValue: e.target.value }))} placeholder="25000" className="w-full bg-zinc-900 border border-zinc-800/60 rounded-xl px-3 py-2.5 text-sm text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1">Model Cost (₹)</label>
+                <input type="number" value={form.modelCost} onChange={(e) => setForm(f => ({ ...f, modelCost: e.target.value }))} placeholder="0" className="w-full bg-zinc-900 border border-zinc-800/60 rounded-xl px-3 py-2.5 text-sm text-white" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1">Editor Cost (₹)</label>
+                <input type="number" value={form.editorCost} onChange={(e) => setForm(f => ({ ...f, editorCost: e.target.value }))} placeholder="0" className="w-full bg-zinc-900 border border-zinc-800/60 rounded-xl px-3 py-2.5 text-sm text-white" />
+              </div>
+            </div>
+          ) : (
             <div>
               <label className="text-xs text-zinc-500 block mb-1">Total Value (₹) *</label>
               <input type="number" value={form.totalValue} onChange={(e) => setForm(f => ({ ...f, totalValue: e.target.value }))} placeholder="25000" className="w-full bg-zinc-900 border border-zinc-800/60 rounded-xl px-3 py-2.5 text-sm text-white" />
             </div>
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Model Cost (₹)</label>
-              <input type="number" value={form.modelCost} onChange={(e) => setForm(f => ({ ...f, modelCost: e.target.value }))} placeholder="0" className="w-full bg-zinc-900 border border-zinc-800/60 rounded-xl px-3 py-2.5 text-sm text-white" />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 block mb-1">Editor Cost (₹)</label>
-              <input type="number" value={form.editorCost} onChange={(e) => setForm(f => ({ ...f, editorCost: e.target.value }))} placeholder="0" className="w-full bg-zinc-900 border border-zinc-800/60 rounded-xl px-3 py-2.5 text-sm text-white" />
-            </div>
-          </div>
+          )}
 
-          {/* Net profit preview */}
-          {form.totalValue && (
+          {/* Net profit preview — only for UGC/AI/Editing */}
+          {showModelEditorCost && form.totalValue && (
             <div className="bg-yellow-500/8 border border-yellow-500/25 rounded-xl px-4 py-3">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-zinc-400">Net Profit</span>

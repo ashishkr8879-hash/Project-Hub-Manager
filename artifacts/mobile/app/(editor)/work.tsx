@@ -54,6 +54,22 @@ type SpecConfig = {
   workBannerSub: string;
 };
 
+async function safeOpenUrl(url?: string | null) {
+  if (!url || !/^https?:\/\//i.test(url)) {
+    if (Platform.OS !== "web") {
+      Alert.alert("Cannot open", "This item does not have a valid web link.");
+    }
+    return;
+  }
+  try {
+    await Linking.openURL(url);
+  } catch {
+    if (Platform.OS !== "web") {
+      Alert.alert("Cannot open", "Unable to open this link on your device.");
+    }
+  }
+}
+
 function getSpecConfig(spec?: string): SpecConfig {
   switch (spec) {
     case "Graphic Designer":
@@ -156,7 +172,7 @@ export default function WorkScreen() {
         if (openChat === "1") {
           setChatProject(found);
         } else {
-          setUploadModal(found);
+          setDetailProject(found);
         }
       }
     }
@@ -412,11 +428,14 @@ export default function WorkScreen() {
 
         <View style={styles.actions}>
           <TouchableOpacity
-            onPress={() => Linking.openURL(item.fileName).catch(() => Alert.alert("Open File", `File: ${item.fileName}\nSize: ${item.fileSize}\n\nThis file was submitted and approved. Open your file manager to locate it.`))}
+            onPress={() => Alert.alert(
+              "File Info",
+              `📁 ${item.fileName}\n📦 ${item.fileSize}\n\n${item.status === "approved" ? "✅ Admin approved this submission." : "✅ Project marked as completed."}`,
+            )}
             style={[styles.actionBtn, { backgroundColor: `${colors.success}15`, borderColor: `${colors.success}30`, flex: 1 }]}
           >
-            <Feather name="download" size={14} color={colors.success} />
-            <Text style={[styles.actionText, { color: colors.success }]}>Open / Play</Text>
+            <Feather name="info" size={14} color={colors.success} />
+            <Text style={[styles.actionText, { color: colors.success }]}>File Info</Text>
           </TouchableOpacity>
           {project && (
             <TouchableOpacity onPress={() => setChatProject(project)}
@@ -787,7 +806,7 @@ function ProjectDetailModal({
 
                       {/* URL link */}
                       {ref.url && (
-                        <TouchableOpacity onPress={() => Linking.openURL(ref.url!).catch(() => {})}>
+                        <TouchableOpacity onPress={() => safeOpenUrl(ref.url)}>
                           <Text style={[styles.dtRefSub, { color: colors.primary }]} numberOfLines={1}>
                             🔗 {ref.url}
                           </Text>
@@ -839,8 +858,7 @@ function ProjectDetailModal({
                               <Text style={[styles.dtRefActionText, { color: colors.primary }]}>Copy link</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                              onPress={() => Linking.openURL(ref.url!).catch(() =>
-                                Alert.alert("Cannot open", "Unable to open this link."))}
+                              onPress={() => safeOpenUrl(ref.url)}
                               style={[styles.dtRefActionBtn, { backgroundColor: `${colors.primary}14` }]}
                             >
                               <Feather name="external-link" size={12} color={colors.primary} />
@@ -1163,7 +1181,7 @@ function UploadModal({
                       <Text style={[styles.refTitle, { color: colors.foreground }]}>{item.title}</Text>
                       {item.fileName && <Text style={[styles.refUrl, { color: theme.primary }]} numberOfLines={1}>📎 {item.fileName}</Text>}
                       {item.url && (
-                        <TouchableOpacity onPress={() => Linking.openURL(item.url!).catch(() => {})}>
+                        <TouchableOpacity onPress={() => safeOpenUrl(item.url)}>
                           <Text style={[styles.refUrl, { color: colors.primary }]} numberOfLines={1}>{item.url}</Text>
                         </TouchableOpacity>
                       )}

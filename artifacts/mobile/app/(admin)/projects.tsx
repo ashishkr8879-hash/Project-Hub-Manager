@@ -31,6 +31,16 @@ import {
   type ProjectReference,
 } from "@/hooks/useApi";
 
+async function safeOpenUrl(url?: string | null) {
+  if (!url || !/^https?:\/\//i.test(url)) {
+    if (Platform.OS !== "web") Alert.alert("Cannot open", "This item does not have a valid web link.");
+    return;
+  }
+  try { await Linking.openURL(url); } catch {
+    if (Platform.OS !== "web") Alert.alert("Cannot open", "Unable to open this link on your device.");
+  }
+}
+
 const FILTERS = ["All", "Pending", "In Progress", "Completed"] as const;
 
 const TYPE_ICONS: Record<string, string> = {
@@ -448,7 +458,7 @@ function ProjectDetailModal({
                     <Text style={[styles.refUrl, { color: colors.adminPrimary ?? colors.primary }]} numberOfLines={1}>📎 {item.fileName}</Text>
                   )}
                   {item.url && (
-                    <TouchableOpacity onPress={() => Linking.openURL(item.url!).catch(() => {})}>
+                    <TouchableOpacity onPress={() => safeOpenUrl(item.url)}>
                       <Text style={[styles.refUrl, { color: colors.primary }]} numberOfLines={1}>{item.url}</Text>
                     </TouchableOpacity>
                   )}

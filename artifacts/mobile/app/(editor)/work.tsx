@@ -137,6 +137,7 @@ export default function WorkScreen() {
   const [updating, setUpdating] = useState<string | null>(null);
   const [uploadModal, setUploadModal] = useState<Project | null>(null);
   const [chatProject, setChatProject] = useState<Project | null>(null);
+  const [detailProject, setDetailProject] = useState<Project | null>(null);
 
   const { data: projects = [], isLoading, refetch } = useQuery({
     queryKey: ["editor-projects", editorId],
@@ -289,18 +290,35 @@ export default function WorkScreen() {
                 {item.revisionRequested ? "Customise!" : "Chat"}
               </Text>
             </TouchableOpacity>
+            {/* Project Details button */}
+            <TouchableOpacity
+              onPress={() => setDetailProject(item)}
+              style={[styles.actionBtn, { backgroundColor: `${colors.mutedForeground}10`, borderColor: `${colors.mutedForeground}25` }]}
+            >
+              <Feather name="info" size={14} color={colors.mutedForeground} />
+              <Text style={[styles.actionText, { color: colors.mutedForeground }]}>Details</Text>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* Chat button for completed projects too */}
+        {/* Chat + Details buttons for completed projects */}
         {isCompleted && (
-          <TouchableOpacity
-            onPress={() => setChatProject(item)}
-            style={[styles.actionBtn, { backgroundColor: `${theme.primary}10`, borderColor: `${theme.primary}20`, alignSelf: "flex-start" }]}
-          >
-            <Feather name="message-circle" size={13} color={theme.primary} />
-            <Text style={[styles.actionText, { color: theme.primary, fontSize: 12 }]}>Chat</Text>
-          </TouchableOpacity>
+          <View style={styles.actions}>
+            <TouchableOpacity
+              onPress={() => setChatProject(item)}
+              style={[styles.actionBtn, { backgroundColor: `${theme.primary}10`, borderColor: `${theme.primary}20` }]}
+            >
+              <Feather name="message-circle" size={13} color={theme.primary} />
+              <Text style={[styles.actionText, { color: theme.primary, fontSize: 12 }]}>Chat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setDetailProject(item)}
+              style={[styles.actionBtn, { backgroundColor: `${colors.mutedForeground}10`, borderColor: `${colors.mutedForeground}25` }]}
+            >
+              <Feather name="info" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.actionText, { color: colors.mutedForeground, fontSize: 12 }]}>Details</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     );
@@ -511,6 +529,18 @@ export default function WorkScreen() {
         />
       )}
 
+      {detailProject && (
+        <ProjectDetailModal
+          project={detailProject}
+          colors={colors}
+          insets={insets}
+          theme={theme}
+          onClose={() => setDetailProject(null)}
+          onChat={(p) => { setDetailProject(null); setChatProject(p); }}
+          onUpload={(p) => { setDetailProject(null); setUploadModal(p); }}
+        />
+      )}
+
       {chatProject && currentUser && (
         <ChatModal
           visible={!!chatProject}
@@ -525,6 +555,242 @@ export default function WorkScreen() {
   );
 }
 
+// ─── Project Detail Modal ─────────────────────────────────────────────────────
+function ProjectDetailModal({
+  project, colors, insets, theme, onClose, onChat, onUpload,
+}: {
+  project: Project;
+  colors: ReturnType<typeof useColors>;
+  insets: ReturnType<typeof import("react-native-safe-area-context").useSafeAreaInsets>;
+  theme: { primary: string };
+  onClose: () => void;
+  onChat: (p: Project) => void;
+  onUpload: (p: Project) => void;
+}) {
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const progress = project.totalDeliverables > 0
+    ? project.completedDeliverables / project.totalDeliverables : 0;
+  const isCompleted = project.status === "completed";
+
+  const { data: references = [], isLoading: refsLoading } = useQuery({
+    queryKey: ["project-refs", project.id],
+    queryFn: () => fetchProjectReferences(project.id),
+  });
+
+  const typeLabel: Record<string, string> = {
+    ugc: "UGC", ai_video: "AI Video", editing: "Editing", branded: "Branded Content",
+    corporate: "Corporate", wedding: "Wedding", social_media: "Social Media",
+    graphic_design: "Graphic Design", ads_setup: "Ads Setup", website: "Website Dev", other: "Other",
+  };
+
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalSheet, { backgroundColor: colors.card, paddingBottom: bottomPad + 16, maxHeight: "92%" }]}>
+          <View style={styles.modalHandle} />
+
+          {/* Header */}
+          <View style={styles.modalHeader}>
+            <View style={[styles.dtTypeBadge, { backgroundColor: `${theme.primary}18` }]}>
+              <Feather name="folder" size={14} color={theme.primary} />
+              <Text style={[styles.dtTypeBadgeText, { color: theme.primary }]}>
+                {typeLabel[project.projectType] ?? project.projectType}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={{ padding: 4, marginLeft: "auto" }}>
+              <Feather name="x" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            {/* Title block */}
+            <View style={[styles.dtTitleBlock, { borderColor: colors.border }]}>
+              <Text style={[styles.dtProjectName, { color: colors.foreground }]}>{project.projectName}</Text>
+              <Text style={[styles.dtClientName, { color: colors.mutedForeground }]}>
+                <Feather name="user" size={13} /> {project.clientName}
+              </Text>
+            </View>
+
+            {/* Status + progress row */}
+            <View style={[styles.dtSection, { borderColor: colors.border }]}>
+              <View style={styles.dtRow}>
+                <Text style={[styles.dtLabel, { color: colors.mutedForeground }]}>Status</Text>
+                <View style={[styles.dtStatusDot, {
+                  backgroundColor: isCompleted ? "#dcfce7" : project.status === "in_progress" ? "#dbeafe" : "#fef9c3",
+                }]}>
+                  <View style={[styles.dtDot, {
+                    backgroundColor: isCompleted ? "#16a34a" : project.status === "in_progress" ? "#2563eb" : "#ca8a04",
+                  }]} />
+                  <Text style={[styles.dtStatusText, {
+                    color: isCompleted ? "#15803d" : project.status === "in_progress" ? "#1d4ed8" : "#a16207",
+                  }]}>
+                    {isCompleted ? "Completed" : project.status === "in_progress" ? "In Progress" : "Pending"}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.dtRow}>
+                <Text style={[styles.dtLabel, { color: colors.mutedForeground }]}>Progress</Text>
+                <View style={styles.dtProgressWrap}>
+                  <View style={[styles.dtProgressBar, { backgroundColor: colors.muted }]}>
+                    <View style={[styles.dtProgressFill, {
+                      backgroundColor: isCompleted ? "#16a34a" : theme.primary,
+                      width: `${Math.round(progress * 100)}%` as `${number}%`,
+                    }]} />
+                  </View>
+                  <Text style={[styles.dtProgressCount, { color: colors.foreground }]}>
+                    {project.completedDeliverables}/{project.totalDeliverables}
+                  </Text>
+                </View>
+              </View>
+              {project.deadline && (
+                <View style={styles.dtRow}>
+                  <Text style={[styles.dtLabel, { color: colors.mutedForeground }]}>Deadline</Text>
+                  <Text style={[styles.dtValue, { color: colors.warning }]}>
+                    📅 {new Date(project.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.dtRow}>
+                <Text style={[styles.dtLabel, { color: colors.mutedForeground }]}>Assigned On</Text>
+                <Text style={[styles.dtValue, { color: colors.foreground }]}>
+                  {new Date(project.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </Text>
+              </View>
+              <View style={styles.dtRow}>
+                <Text style={[styles.dtLabel, { color: colors.mutedForeground }]}>Total Deliverables</Text>
+                <Text style={[styles.dtValue, { color: colors.foreground }]}>{project.totalDeliverables} files</Text>
+              </View>
+            </View>
+
+            {/* Brief / Notes */}
+            {project.notes && (
+              <View style={[styles.dtSection, { borderColor: colors.border }]}>
+                <View style={styles.dtSectionHeader}>
+                  <Feather name="align-left" size={14} color={theme.primary} />
+                  <Text style={[styles.dtSectionTitle, { color: colors.foreground }]}>Brief / Notes</Text>
+                </View>
+                <Text style={[styles.dtNote, { color: colors.foreground, backgroundColor: colors.muted }]}>
+                  {project.notes}
+                </Text>
+              </View>
+            )}
+
+            {/* Script */}
+            {project.script && (
+              <View style={[styles.dtSection, { borderColor: colors.border }]}>
+                <View style={styles.dtSectionHeader}>
+                  <Feather name="file-text" size={14} color={theme.primary} />
+                  <Text style={[styles.dtSectionTitle, { color: colors.foreground }]}>Script</Text>
+                </View>
+                <Text style={[styles.dtNote, { color: colors.foreground, backgroundColor: colors.muted }]}>
+                  {project.script}
+                </Text>
+              </View>
+            )}
+
+            {/* References / Files */}
+            <View style={[styles.dtSection, { borderColor: colors.border }]}>
+              <View style={styles.dtSectionHeader}>
+                <Feather name="paperclip" size={14} color={theme.primary} />
+                <Text style={[styles.dtSectionTitle, { color: colors.foreground }]}>
+                  References & Files
+                  {references.length > 0 && (
+                    <Text style={{ color: theme.primary }}> ({references.length})</Text>
+                  )}
+                </Text>
+              </View>
+              {refsLoading ? (
+                <ActivityIndicator color={theme.primary} style={{ marginVertical: 12 }} />
+              ) : references.length === 0 ? (
+                <View style={[styles.dtEmptyRefs, { backgroundColor: colors.muted }]}>
+                  <Feather name="link-2" size={18} color={colors.mutedForeground} />
+                  <Text style={[styles.dtEmptyRefsText, { color: colors.mutedForeground }]}>No references attached</Text>
+                </View>
+              ) : (
+                references.map((ref) => (
+                  <View key={ref.id} style={[styles.dtRefCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                    <View style={[styles.dtRefIcon, {
+                      backgroundColor: ref.url ? `${colors.primary}18` : `${theme.primary}18`,
+                    }]}>
+                      <Feather name={ref.url ? "link" : "file"} size={14}
+                        color={ref.url ? colors.primary : theme.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.dtRefTitle, { color: colors.foreground }]}>{ref.title}</Text>
+                      {ref.fileName && (
+                        <Text style={[styles.dtRefSub, { color: theme.primary }]} numberOfLines={1}>
+                          📎 {ref.fileName}
+                        </Text>
+                      )}
+                      {ref.url && (
+                        <TouchableOpacity onPress={() => Linking.openURL(ref.url!).catch(() => {})}>
+                          <Text style={[styles.dtRefSub, { color: colors.primary }]} numberOfLines={1}>
+                            🔗 {ref.url}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      {ref.note ? <Text style={[styles.dtRefNote, { color: colors.mutedForeground }]}>{ref.note}</Text> : null}
+                    </View>
+                    {ref.url && (
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(ref.url!).catch(() =>
+                          Alert.alert("Cannot open", "Unable to open this link."))}
+                        style={[styles.dtRefOpenBtn, { backgroundColor: `${colors.primary}15` }]}
+                      >
+                        <Feather name="external-link" size={14} color={colors.primary} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))
+              )}
+            </View>
+
+            {/* Revision note */}
+            {project.revisionRequested && (
+              <View style={[styles.dtSection, { borderColor: "#fde047" }]}>
+                <View style={[styles.dtRevisionBanner, { backgroundColor: "#fef9c3", borderColor: "#fde047" }]}>
+                  <Feather name="edit-2" size={14} color="#b45309" />
+                  <Text style={[styles.dtNote, { color: "#92400e", backgroundColor: "transparent", flex: 1 }]}>
+                    Admin has requested customisation on this project. Tap "Chat" to see details.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={{ height: 12 }} />
+          </ScrollView>
+
+          {/* Action buttons */}
+          <View style={styles.dtActions}>
+            {!isCompleted && (
+              <TouchableOpacity
+                onPress={() => onUpload(project)}
+                style={[styles.dtActionBtn, { backgroundColor: theme.primary }]}
+              >
+                <Feather name="upload" size={15} color="#fff" />
+                <Text style={styles.dtActionBtnText}>Upload Work</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => onChat(project)}
+              style={[styles.dtActionBtn, {
+                backgroundColor: project.revisionRequested ? "#f59e0b" : `${theme.primary}18`,
+                flex: isCompleted ? 1 : undefined,
+              }]}
+            >
+              <Feather name="message-circle" size={15} color={project.revisionRequested ? "#fff" : theme.primary} />
+              <Text style={[styles.dtActionBtnText, { color: project.revisionRequested ? "#fff" : theme.primary }]}>
+                {project.revisionRequested ? "Customise!" : "Chat"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Upload Modal ─────────────────────────────────────────────────────────────
 function UploadModal({
   project, editorId, colors, insets, specConfig, onClose, onSuccess,
 }: {
@@ -876,6 +1142,38 @@ const styles = StyleSheet.create({
   refSaveBtn: { alignItems: "center", padding: 12, borderRadius: 12 },
   refSaveBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   emptyRefs: { alignItems: "center", padding: 32, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", gap: 8, marginTop: 8 },
+  // ── Project Detail Modal styles ──
+  dtTypeBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  dtTypeBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  dtTitleBlock: { paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: 1, marginBottom: 4, gap: 4 },
+  dtProjectName: { fontSize: 18, fontFamily: "Inter_700Bold", lineHeight: 24 },
+  dtClientName: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  dtSection: { paddingVertical: 12, borderBottomWidth: 1, gap: 10, marginBottom: 2 },
+  dtSectionHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
+  dtSectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  dtRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  dtLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  dtValue: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  dtStatusDot: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  dtDot: { width: 7, height: 7, borderRadius: 4 },
+  dtStatusText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  dtProgressWrap: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, justifyContent: "flex-end" },
+  dtProgressBar: { height: 6, borderRadius: 3, flex: 1, maxWidth: 120, overflow: "hidden" },
+  dtProgressFill: { height: 6, borderRadius: 3 },
+  dtProgressCount: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  dtNote: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20, padding: 12, borderRadius: 10 },
+  dtEmptyRefs: { alignItems: "center", padding: 20, borderRadius: 12, gap: 6 },
+  dtEmptyRefsText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  dtRefCard: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  dtRefIcon: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  dtRefTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  dtRefSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  dtRefNote: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
+  dtRefOpenBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  dtRevisionBanner: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
+  dtActions: { flexDirection: "row", gap: 10, paddingTop: 12 },
+  dtActionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, borderRadius: 14 },
+  dtActionBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#fff" },
   emptyRefsText: { fontSize: 13, fontFamily: "Inter_400Regular" },
   refCard: { flexDirection: "row", alignItems: "flex-start", borderRadius: 12, borderWidth: 1, padding: 12, gap: 10, marginBottom: 8 },
   refIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },

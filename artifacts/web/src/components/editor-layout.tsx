@@ -12,10 +12,21 @@ const navItems = [
   { href: "/editor/profile", label: "My Profile", icon: User },
 ];
 
+const SPEC_COLORS: Record<string, string> = {
+  "Video Editor": "#7c3aed",
+  "Graphic Designer": "#ec4899",
+  "Social Media Manager": "#0ea5e9",
+  "Website Development": "#10b981",
+  "Ads Setup": "#f97316",
+};
+
 export default function EditorLayout({ children }: EditorLayoutProps) {
   const [location] = useLocation();
   const { logout, user } = useAuth();
   const editorId = (user as any)?.editorId ?? user?.id ?? "";
+  const spec = (user as any)?.specialization ?? "Team Member";
+  const specColor = SPEC_COLORS[spec] ?? "#7c3aed";
+
   const { data: notifications = [] } = useListNotifications(editorId, { query: { refetchInterval: 12000 } });
   const unread = notifications.filter((n) => !n.read).length;
   const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
@@ -28,7 +39,7 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
             <img src={logoUrl} alt="Divayshakati" className="w-12 h-12 object-contain flex-shrink-0 drop-shadow-lg" />
             <div>
               <div className="font-bold text-sm tracking-tight text-white leading-none">Divayshakati</div>
-              <div className="text-[10px] text-violet-400/80 mt-0.5 font-medium tracking-wide">Editor Panel</div>
+              <div className="text-[10px] mt-0.5 font-medium tracking-wide" style={{ color: specColor + "cc" }}>Team Panel</div>
             </div>
           </div>
         </div>
@@ -43,13 +54,14 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${
-                  isActive ? "bg-violet-600/15 text-violet-400 font-semibold" : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+                  isActive ? "font-semibold" : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
                 }`}
+                style={isActive ? { backgroundColor: specColor + "20", color: specColor } : {}}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 <span className="text-sm flex-1">{item.label}</span>
                 {showBadge && (
-                  <span className="text-[10px] font-bold bg-violet-500 text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  <span className="text-[10px] font-bold text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1" style={{ backgroundColor: specColor }}>
                     {unread}
                   </span>
                 )}
@@ -60,12 +72,13 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
 
         <div className="p-3 border-t border-zinc-800/60 flex-shrink-0">
           <div className="flex items-center gap-2.5 px-3 py-2 mb-1 rounded-xl bg-zinc-900/60 border border-zinc-800/50">
-            <div className="w-7 h-7 bg-violet-500/20 border border-violet-500/30 rounded-full flex items-center justify-center text-xs font-bold text-violet-400 flex-shrink-0">
-              {user?.name?.charAt(0) || "E"}
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+              style={{ backgroundColor: specColor + "30", color: specColor, borderColor: specColor + "50", borderWidth: 1 }}>
+              {user?.name?.charAt(0) || "T"}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-xs font-semibold text-white truncate">{user?.name || "Editor"}</p>
-              <p className="text-[10px] text-zinc-500 truncate">{(user as any)?.specialization || "Editor"}</p>
+              <p className="text-xs font-semibold text-white truncate">{user?.name || "Team Member"}</p>
+              <p className="text-[10px] text-zinc-500 truncate">{spec}</p>
             </div>
           </div>
           <button

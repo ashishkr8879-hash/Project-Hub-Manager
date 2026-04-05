@@ -40,20 +40,14 @@ export default function Login() {
   async function onSubmit(values: z.infer<typeof loginSchema>) {
     try {
       const response = await loginMutation.mutateAsync({ data: values });
-      if (response.role !== "admin") {
-        toast({
-          title: "Access Denied",
-          description: "Only administrators can access this portal.",
-          variant: "destructive",
-        });
-        return;
-      }
       login(response);
-      toast({
-        title: "Welcome back",
-        description: "Successfully logged in as admin.",
-      });
-      setLocation("/");
+      if (response.role === "admin") {
+        toast({ title: "Welcome back, Admin", description: "Logged in to command center." });
+        setLocation("/");
+      } else {
+        toast({ title: `Welcome, ${response.name}`, description: "Logged in to team panel." });
+        setLocation("/editor");
+      }
     } catch (error: any) {
       toast({
         title: "Login failed",
@@ -75,7 +69,7 @@ export default function Login() {
             className="mx-auto w-16 h-16 object-contain mb-4 drop-shadow-lg"
           />
           <CardTitle className="text-2xl font-bold tracking-tight text-zinc-100">Divayshakati Command</CardTitle>
-          <CardDescription className="text-zinc-400">Authenticate to access the admin portal</CardDescription>
+          <CardDescription className="text-zinc-400">Login to access your workspace</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

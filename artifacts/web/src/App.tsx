@@ -8,21 +8,32 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Projects from "@/pages/projects";
+import Create from "@/pages/create";
 import Clients from "@/pages/clients";
 import Team from "@/pages/team";
-import TeamMember from "@/pages/team-member";
 import Videos from "@/pages/videos";
 import Calendar from "@/pages/calendar";
 import Settings from "@/pages/settings";
 import Layout from "@/components/layout";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 10000,
+    },
+  },
+});
 
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any> }) {
   const { user, isLoaded } = useAuth();
 
   if (!isLoaded) {
-    return <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-500">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   if (!user) {
@@ -41,10 +52,10 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
+      <Route path="/create" component={() => <ProtectedRoute component={Create} />} />
       <Route path="/projects" component={() => <ProtectedRoute component={Projects} />} />
       <Route path="/clients" component={() => <ProtectedRoute component={Clients} />} />
       <Route path="/team" component={() => <ProtectedRoute component={Team} />} />
-      <Route path="/team/:editorId" component={({ params }: any) => <ProtectedRoute component={TeamMember} editorId={params.editorId} />} />
       <Route path="/videos" component={() => <ProtectedRoute component={Videos} />} />
       <Route path="/calendar" component={() => <ProtectedRoute component={Calendar} />} />
       <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />

@@ -1,449 +1,464 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useListProjects, useListEditors, useUpdateProject, useDeleteProject,
-  useUpdateProjectStatus, useSetProjectRevision, useUpdateProjectPayment,
-  useCreateProject, useListProjectReferences, useListMessages, useSendMessage,
-  useAddProjectReference, useDeleteReference,
-  getListProjectsQueryKey, getListEditorsQueryKey,
+  useUpdateProjectPayment, useListProjectReferences,
+  useAddProjectReference, useDeleteReference, useListMessages, useSendMessage,
 } from "@workspace/api-client-react";
+import type { Project, UpdateProjectBody } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, ChevronRight, Trash2, Edit, CheckCircle2, Clock, AlertCircle, IndianRupee, Link2, MessageSquare } from "lucide-react";
-import type { Project, Editor } from "@workspace/api-client-react";
+import { Link } from "wouter";
+import {
+  Search, X, Phone, Mail, User, Calendar, Link2,
+  Trash2, Plus, Send, MessageCircle, Edit2, AlertCircle,
+  DollarSign, Minus, ExternalLink,
+} from "lucide-react";
 
-const PROJECT_TYPES = ["ugc", "ai_video", "editing", "branded", "corporate", "wedding", "social_media", "graphic_design", "ads_setup", "website", "other"];
-const STATUSES = ["pending", "in_progress", "completed"];
-
-const statusColors: Record<string, string> = {
-  pending: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  in_progress: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+const TYPE_LABELS: Record<string, string> = {
+  ugc: "UGC", ai_video: "AI Video", editing: "Editing", branded: "Branded",
+  corporate: "Corporate", wedding: "Wedding", social_media: "Social Media",
+  graphic_design: "Graphic Design", ads_setup: "Ads Setup", website: "Website", other: "Other",
 };
-
-const statusIcons: Record<string, React.ComponentType<any>> = {
-  pending: Clock,
-  in_progress: AlertCircle,
-  completed: CheckCircle2,
+const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  ugc: { bg: "#fef3c7", text: "#92400e" }, branded: { bg: "#dbeafe", text: "#1e40af" },
+  corporate: { bg: "#f3f4f6", text: "#374151" }, wedding: { bg: "#fce7f3", text: "#9d174d" },
+  social_media: { bg: "#ede9fe", text: "#6d28d9" }, ai_video: { bg: "#d1fae5", text: "#065f46" },
+  editing: { bg: "#ffedd5", text: "#9a3412" }, graphic_design: { bg: "#fdf4ff", text: "#7e22ce" },
+  ads_setup: { bg: "#fff7ed", text: "#c2410c" }, website: { bg: "#ecfdf5", text: "#065f46" },
+  other: { bg: "#f3f4f6", text: "#6b7280" },
 };
+const STATUS_OPTS = ["All", "Pending", "In Progress", "Completed"];
+const statusKey = (s: string) => s === "In Progress" ? "in_progress" : s.toLowerCase();
+const fmt = (n: number) => "₹" + n.toLocaleString("en-IN");
 
-const typeColors: Record<string, string> = {
-  ugc: "bg-purple-500/10 text-purple-400",
-  ai_video: "bg-violet-500/10 text-violet-400",
-  editing: "bg-blue-500/10 text-blue-400",
-  branded: "bg-cyan-500/10 text-cyan-400",
-  corporate: "bg-slate-500/10 text-slate-400",
-  wedding: "bg-pink-500/10 text-pink-400",
-  social_media: "bg-orange-500/10 text-orange-400",
-  graphic_design: "bg-rose-500/10 text-rose-400",
-  ads_setup: "bg-amber-500/10 text-amber-400",
-  website: "bg-teal-500/10 text-teal-400",
-  other: "bg-zinc-500/10 text-zinc-400",
-};
-
-function formatCurrency(n: number) {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
-}
-
-function formatDate(d?: string) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function ProgressBar({ value, max }: { value: number; max: number }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { cls: string; label: string; dot: string }> = {
+    pending: { cls: "bg-yellow-500/10 text-yellow-400", label: "Pending", dot: "bg-yellow-400" },
+    in_progress: { cls: "bg-blue-500/10 text-blue-400", label: "In Progress", dot: "bg-blue-400" },
+    completed: { cls: "bg-emerald-500/10 text-emerald-400", label: "Completed", dot: "bg-emerald-400" },
+  };
+  const { cls, label, dot } = map[status] || map.pending;
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+    <span className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium ${cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />{label}
+    </span>
+  );
+}
+
+function ProgressBar({ completed, total, status }: { completed: number; total: number; status: string }) {
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-zinc-500">
+        <span>{completed}/{total} deliverables</span><span>{pct}%</span>
       </div>
-      <span className="text-xs text-zinc-500 w-12 text-right">{value}/{max}</span>
+      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: status === "completed" ? "#10b981" : "#3b82f6" }} />
+      </div>
     </div>
   );
 }
 
-function CreateProjectModal({ editors, onClose }: { editors: Editor[]; onClose: () => void }) {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const create = useCreateProject();
-  const [form, setForm] = useState({
-    clientName: "", clientPhone: "", clientEmail: "", projectName: "",
-    projectType: "branded", totalValue: "", modelCost: "0", editorCost: "0",
-    totalDeliverables: "1", editorId: "", deadline: "", notes: "",
-  });
-
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-
-  const handleSubmit = () => {
-    if (!form.clientName || !form.projectName || !form.totalValue || !form.editorId) {
-      toast({ title: "Missing fields", description: "Client name, project name, value and editor are required.", variant: "destructive" });
-      return;
-    }
-    create.mutate({
-      data: {
-        clientName: form.clientName, clientPhone: form.clientPhone || undefined,
-        clientEmail: form.clientEmail || undefined,
-        projectName: form.projectName, projectType: form.projectType as any,
-        totalValue: Number(form.totalValue), modelCost: Number(form.modelCost) || 0,
-        editorCost: Number(form.editorCost) || 0,
-        totalDeliverables: Number(form.totalDeliverables) || 1,
-        editorId: form.editorId, deadline: form.deadline || undefined,
-        notes: form.notes || undefined,
-      }
-    }, {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
-        toast({ title: "Project created" });
-        onClose();
-      },
-      onError: () => toast({ title: "Failed to create project", variant: "destructive" }),
-    });
-  };
-
+function ProjectCard({ project, onOpen }: { project: Project; onOpen: () => void }) {
+  const typeInfo = TYPE_COLORS[project.projectType] ?? TYPE_COLORS.other;
+  const typeLabel = TYPE_LABELS[project.projectType] ?? "Other";
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>New Project</DialogTitle>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 py-2">
-          <div className="col-span-2 space-y-1"><Label>Client Name *</Label><Input data-testid="input-client-name" className="bg-zinc-800 border-zinc-700" value={form.clientName} onChange={e => set("clientName", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Client Phone</Label><Input data-testid="input-client-phone" className="bg-zinc-800 border-zinc-700" value={form.clientPhone} onChange={e => set("clientPhone", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Client Email</Label><Input data-testid="input-client-email" className="bg-zinc-800 border-zinc-700" value={form.clientEmail} onChange={e => set("clientEmail", e.target.value)} /></div>
-          <div className="col-span-2 space-y-1"><Label>Project Name *</Label><Input data-testid="input-project-name" className="bg-zinc-800 border-zinc-700" value={form.projectName} onChange={e => set("projectName", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Project Type</Label>
-            <Select value={form.projectType} onValueChange={v => set("projectType", v)}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-zinc-900 border-zinc-800">{PROJECT_TYPES.map(t => <SelectItem key={t} value={t}>{t.replace("_", " ")}</SelectItem>)}</SelectContent>
-            </Select>
+    <div onClick={onOpen} className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-4 cursor-pointer hover:border-zinc-700 hover:bg-zinc-800/40 transition-all duration-150 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-white truncate">{project.projectName}</span>
+            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: typeInfo.bg, color: typeInfo.text }}>{typeLabel}</span>
           </div>
-          <div className="space-y-1"><Label>Editor *</Label>
-            <Select value={form.editorId} onValueChange={v => set("editorId", v)}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue placeholder="Select editor" /></SelectTrigger>
-              <SelectContent className="bg-zinc-900 border-zinc-800">{editors.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1"><Label>Total Value (₹) *</Label><Input data-testid="input-total-value" type="number" className="bg-zinc-800 border-zinc-700" value={form.totalValue} onChange={e => set("totalValue", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Model Cost (₹)</Label><Input type="number" className="bg-zinc-800 border-zinc-700" value={form.modelCost} onChange={e => set("modelCost", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Editor Cost (₹)</Label><Input type="number" className="bg-zinc-800 border-zinc-700" value={form.editorCost} onChange={e => set("editorCost", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Deliverables</Label><Input type="number" className="bg-zinc-800 border-zinc-700" value={form.totalDeliverables} onChange={e => set("totalDeliverables", e.target.value)} /></div>
-          <div className="space-y-1"><Label>Deadline</Label><Input type="date" className="bg-zinc-800 border-zinc-700" value={form.deadline} onChange={e => set("deadline", e.target.value)} /></div>
-          <div className="col-span-2 space-y-1"><Label>Notes</Label><Textarea className="bg-zinc-800 border-zinc-700" value={form.notes} onChange={e => set("notes", e.target.value)} /></div>
+          <p className="text-xs text-zinc-500 mt-0.5">{project.clientName}</p>
         </div>
-        <DialogFooter>
-          <Button variant="outline" className="border-zinc-700" onClick={onClose}>Cancel</Button>
-          <Button data-testid="button-create-project" onClick={handleSubmit} disabled={create.isPending}>{create.isPending ? "Creating..." : "Create Project"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <StatusBadge status={project.status} />
+      </div>
+      <ProgressBar completed={project.completedDeliverables} total={project.totalDeliverables} status={project.status} />
+      <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+        <div className="flex items-center gap-1 text-emerald-400">
+          <DollarSign className="w-3 h-3" /><span className="font-semibold">{fmt(project.totalValue)}</span>
+        </div>
+        {project.editorName && <div className="flex items-center gap-1 text-zinc-500"><User className="w-3 h-3" /><span>{project.editorName}</span></div>}
+        {project.deadline && <div className="flex items-center gap-1 text-amber-400"><Calendar className="w-3 h-3" /><span>Due {new Date(project.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span></div>}
+      </div>
+    </div>
   );
 }
 
-function ProjectDetailModal({ project, editors, onClose }: { project: Project; editors: Editor[]; onClose: () => void }) {
+function ProjectDetailModal({ project, onClose, editors }: { project: Project; onClose: () => void; editors: any[] }) {
   const qc = useQueryClient();
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const [tab, setTab] = useState<"overview" | "messages" | "references">("overview");
+  const [tab, setTab] = useState<"overview" | "references" | "chat">("overview");
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ projectName: project.projectName, editorId: project.editorId, totalValue: String(project.totalValue), modelCost: String(project.modelCost), editorCost: String(project.editorCost), totalDeliverables: String(project.totalDeliverables), deadline: project.deadline?.split("T")[0] || "", notes: project.notes || "", status: project.status });
-  const [paidAmount, setPaidAmount] = useState(String(project.paidAmount));
+  const [editForm, setEditForm] = useState<Partial<UpdateProjectBody>>({
+    projectName: project.projectName, totalValue: project.totalValue,
+    modelCost: project.modelCost, editorCost: project.editorCost,
+    totalDeliverables: project.totalDeliverables, completedDeliverables: project.completedDeliverables,
+    deadline: project.deadline, notes: project.notes, script: project.script,
+    status: project.status, editorId: project.editorId,
+  });
+  const [paidAmt, setPaidAmt] = useState(project.paidAmount);
+  const [editingPayment, setEditingPayment] = useState(false);
+  const [newRefTitle, setNewRefTitle] = useState("");
+  const [newRefUrl, setNewRefUrl] = useState("");
+  const [newRefNote, setNewRefNote] = useState("");
+  const [addingRef, setAddingRef] = useState(false);
   const [msgText, setMsgText] = useState("");
-  const [refTitle, setRefTitle] = useState(""); const [refUrl, setRefUrl] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const updateProject = useUpdateProject();
-  const deleteProject = useDeleteProject();
-  const updateStatus = useUpdateProjectStatus();
-  const setRevision = useSetProjectRevision();
-  const updatePayment = useUpdateProjectPayment();
-  const sendMsg = useSendMessage();
-  const addRef = useAddProjectReference();
-  const deleteRef = useDeleteReference();
+  const updateMut = useUpdateProject();
+  const deleteMut = useDeleteProject();
+  const paymentMut = useUpdateProjectPayment();
+  const { data: refs = [], refetch: refetchRefs } = useListProjectReferences(project.id);
+  const addRefMut = useAddProjectReference();
+  const deleteRefMut = useDeleteReference();
+  const { data: messages = [], refetch: refetchMsgs } = useListMessages(project.id, { query: { refetchInterval: tab === "chat" ? 10000 : false as any } });
+  const sendMsgMut = useSendMessage();
 
-  const { data: messages } = useListMessages(project.id, { query: { enabled: true, queryKey: ["messages", project.id] as any } });
-  const { data: references } = useListProjectReferences(project.id, { query: { enabled: true, queryKey: ["references", project.id] as any } });
+  const pending = project.totalValue - paidAmt;
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
-
-  const netProfit = project.totalValue - project.modelCost - project.editorCost;
-  const remaining = project.totalValue - project.paidAmount;
-
-  const handleSaveEdit = () => {
-    updateProject.mutate({ projectId: project.id, data: { projectName: editForm.projectName, editorId: editForm.editorId, totalValue: Number(editForm.totalValue), modelCost: Number(editForm.modelCost), editorCost: Number(editForm.editorCost), totalDeliverables: Number(editForm.totalDeliverables), deadline: editForm.deadline || undefined, notes: editForm.notes || undefined, status: editForm.status } }, { onSuccess: () => { invalidate(); setEditing(false); toast({ title: "Project updated" }); }, onError: () => toast({ title: "Update failed", variant: "destructive" }) });
-  };
-
-  const handleDelete = () => {
-    if (!confirm("Delete this project?")) return;
-    deleteProject.mutate({ projectId: project.id }, { onSuccess: () => { invalidate(); onClose(); toast({ title: "Project deleted" }); } });
-  };
-
-  const handleSendMsg = () => {
-    if (!msgText.trim() || !user) return;
-    sendMsg.mutate({ projectId: project.id, data: { senderId: user.id!, senderName: user.name!, senderRole: "admin", text: msgText.trim() } }, { onSuccess: () => { qc.invalidateQueries({ queryKey: ["messages", project.id] as any }); setMsgText(""); } });
-  };
-
-  const handleAddRef = () => {
-    if (!refTitle.trim()) return;
-    addRef.mutate({ projectId: project.id, data: { title: refTitle.trim(), url: refUrl || undefined } }, { onSuccess: () => { qc.invalidateQueries({ queryKey: ["references", project.id] as any }); setRefTitle(""); setRefUrl(""); } });
-  };
-
-  const handleUpdatePayment = () => {
-    updatePayment.mutate({ projectId: project.id, data: { paidAmount: Number(paidAmount) } }, { onSuccess: () => { invalidate(); toast({ title: "Payment updated" }); } });
-  };
+  async function saveEdit() {
+    await updateMut.mutateAsync({ projectId: project.id, data: editForm as UpdateProjectBody });
+    qc.invalidateQueries({ queryKey: ["/api/projects"] });
+    setEditing(false);
+  }
+  async function savePayment() {
+    await paymentMut.mutateAsync({ projectId: project.id, data: { paidAmount: paidAmt } });
+    qc.invalidateQueries({ queryKey: ["/api/projects"] });
+    setEditingPayment(false);
+  }
+  async function doDelete() {
+    await deleteMut.mutateAsync({ projectId: project.id });
+    qc.invalidateQueries({ queryKey: ["/api/projects"] });
+    onClose();
+  }
+  async function addRef() {
+    if (!newRefTitle || !newRefUrl) return;
+    await addRefMut.mutateAsync({ projectId: project.id, data: { title: newRefTitle, url: newRefUrl, note: newRefNote, fileName: undefined, fileType: undefined } });
+    refetchRefs();
+    setNewRefTitle(""); setNewRefUrl(""); setNewRefNote(""); setAddingRef(false);
+  }
+  async function sendMsg() {
+    if (!msgText.trim()) return;
+    const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+    await sendMsgMut.mutateAsync({ projectId: project.id, data: { text: msgText, senderId: user.id || "admin", senderName: user.name || "Admin", senderRole: "admin" } });
+    refetchMsgs();
+    setMsgText("");
+  }
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <DialogTitle className="text-xl">{project.projectName}</DialogTitle>
-              <p className="text-sm text-zinc-400 mt-1">{project.clientName} · {project.editorName}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col z-10 shadow-2xl">
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 border-b border-zinc-800/60 flex-shrink-0">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-bold text-white">{project.projectName}</h2>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: TYPE_COLORS[project.projectType]?.bg ?? "#f3f4f6", color: TYPE_COLORS[project.projectType]?.text ?? "#6b7280" }}>{TYPE_LABELS[project.projectType] ?? "Other"}</span>
             </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" className="border-zinc-700" onClick={() => setEditing(!editing)} data-testid="button-edit-project"><Edit className="w-3.5 h-3.5" /></Button>
-              <Button size="sm" variant="outline" className="border-red-900 text-red-400 hover:bg-red-950" onClick={handleDelete} data-testid="button-delete-project"><Trash2 className="w-3.5 h-3.5" /></Button>
+            <p className="text-xs text-zinc-500 mt-0.5">{project.clientName}</p>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
+            {!editing && <button onClick={() => setEditing(true)} className="p-2 rounded-lg text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"><Edit2 className="w-4 h-4" /></button>}
+            <button onClick={() => setShowDeleteConfirm(true)} className="p-2 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"><Trash2 className="w-4 h-4" /></button>
+            <button onClick={onClose} className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"><X className="w-4 h-4" /></button>
+          </div>
+        </div>
+
+        {/* Delete confirm overlay */}
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 bg-zinc-950/95 rounded-2xl flex items-center justify-center z-20 p-8">
+            <div className="text-center space-y-4">
+              <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
+              <p className="text-white font-semibold">Delete "{project.projectName}"?</p>
+              <p className="text-sm text-zinc-400">This action cannot be undone.</p>
+              <div className="flex gap-3 justify-center">
+                <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-sm hover:bg-zinc-700 transition-colors">Cancel</button>
+                <button onClick={doDelete} disabled={deleteMut.isPending} className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-50 transition-colors">
+                  {deleteMut.isPending ? "Deleting..." : "Delete"}
+                </button>
+              </div>
             </div>
           </div>
-        </DialogHeader>
+        )}
 
-        <div className="flex gap-2 border-b border-zinc-800 pb-2">
-          {(["overview", "messages", "references"] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 text-sm rounded-md transition-colors ${tab === t ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"}`}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
+        {/* Tabs */}
+        <div className="flex border-b border-zinc-800/60 px-5 flex-shrink-0">
+          {(["overview", "references", "chat"] as const).map((t) => (
+            <button key={t} onClick={() => setTab(t)} className={`px-3 py-3 text-sm capitalize border-b-2 transition-colors -mb-px ${tab === t ? "border-blue-500 text-blue-400 font-semibold" : "border-transparent text-zinc-500 hover:text-white"}`}>{t}</button>
           ))}
         </div>
 
-        {tab === "overview" && (
-          <div className="space-y-4">
-            {editing ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 space-y-1"><Label>Project Name</Label><Input className="bg-zinc-800 border-zinc-700" value={editForm.projectName} onChange={e => setEditForm(f => ({ ...f, projectName: e.target.value }))} /></div>
-                <div className="space-y-1"><Label>Editor</Label>
-                  <Select value={editForm.editorId} onValueChange={v => setEditForm(f => ({ ...f, editorId: v }))}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-800">{editors.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1"><Label>Status</Label>
-                  <Select value={editForm.status} onValueChange={v => setEditForm(f => ({ ...f, status: v as any }))}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-800">{STATUSES.map(s => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1"><Label>Total Value (₹)</Label><Input type="number" className="bg-zinc-800 border-zinc-700" value={editForm.totalValue} onChange={e => setEditForm(f => ({ ...f, totalValue: e.target.value }))} /></div>
-                <div className="space-y-1"><Label>Model Cost (₹)</Label><Input type="number" className="bg-zinc-800 border-zinc-700" value={editForm.modelCost} onChange={e => setEditForm(f => ({ ...f, modelCost: e.target.value }))} /></div>
-                <div className="space-y-1"><Label>Editor Cost (₹)</Label><Input type="number" className="bg-zinc-800 border-zinc-700" value={editForm.editorCost} onChange={e => setEditForm(f => ({ ...f, editorCost: e.target.value }))} /></div>
-                <div className="space-y-1"><Label>Deliverables</Label><Input type="number" className="bg-zinc-800 border-zinc-700" value={editForm.totalDeliverables} onChange={e => setEditForm(f => ({ ...f, totalDeliverables: e.target.value }))} /></div>
-                <div className="space-y-1"><Label>Deadline</Label><Input type="date" className="bg-zinc-800 border-zinc-700" value={editForm.deadline} onChange={e => setEditForm(f => ({ ...f, deadline: e.target.value }))} /></div>
-                <div className="col-span-2 space-y-1"><Label>Notes</Label><Textarea className="bg-zinc-800 border-zinc-700" value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} /></div>
-                <div className="col-span-2 flex gap-2">
-                  <Button size="sm" onClick={handleSaveEdit} disabled={updateProject.isPending}>Save Changes</Button>
-                  <Button size="sm" variant="outline" className="border-zinc-700" onClick={() => setEditing(false)}>Cancel</Button>
-                </div>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {tab === "overview" && (
+            <>
+              {/* Status row */}
+              <div className="flex items-center justify-between gap-3">
+                <StatusBadge status={editing ? (editForm.status ?? "pending") : project.status} />
+                {editing && (
+                  <select value={editForm.status} onChange={(e) => setEditForm(f => ({ ...f, status: e.target.value as any }))} className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-white">
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                )}
               </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
-                    <p className="text-xs text-zinc-500 mb-1">Total Value</p>
-                    <p className="text-lg font-bold text-white">{formatCurrency(project.totalValue)}</p>
+
+              {!editing && <ProgressBar completed={project.completedDeliverables} total={project.totalDeliverables} status={project.status} />}
+              {editing && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className="text-xs text-zinc-500 block mb-1">Completed Deliverables</label><input type="number" value={editForm.completedDeliverables} onChange={(e) => setEditForm(f => ({ ...f, completedDeliverables: +e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white" /></div>
+                  <div><label className="text-xs text-zinc-500 block mb-1">Total Deliverables</label><input type="number" value={editForm.totalDeliverables} onChange={(e) => setEditForm(f => ({ ...f, totalDeliverables: +e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white" /></div>
+                </div>
+              )}
+
+              {/* Financial Breakdown (same as mobile yellow box) */}
+              <div className="bg-yellow-500/8 border border-yellow-500/25 rounded-xl p-4 space-y-2.5">
+                <div className="text-xs font-bold text-yellow-400 uppercase tracking-wider mb-3">Financial Breakdown</div>
+                {editing ? (
+                  <div className="space-y-2">
+                    <div><label className="text-xs text-zinc-400 block mb-1">Project Name</label><input value={editForm.projectName} onChange={(e) => setEditForm(f => ({ ...f, projectName: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white" /></div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div><label className="text-xs text-zinc-400 block mb-1">Total Value (₹)</label><input type="number" value={editForm.totalValue} onChange={(e) => setEditForm(f => ({ ...f, totalValue: +e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white" /></div>
+                      <div><label className="text-xs text-zinc-400 block mb-1">Model Cost (₹)</label><input type="number" value={editForm.modelCost} onChange={(e) => setEditForm(f => ({ ...f, modelCost: +e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white" /></div>
+                      <div><label className="text-xs text-zinc-400 block mb-1">Editor Cost (₹)</label><input type="number" value={editForm.editorCost} onChange={(e) => setEditForm(f => ({ ...f, editorCost: +e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white" /></div>
+                    </div>
                   </div>
-                  <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
-                    <p className="text-xs text-zinc-500 mb-1">Model Cost</p>
-                    <p className="text-lg font-bold text-orange-400">{formatCurrency(project.modelCost)}</p>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center"><span className="text-sm text-zinc-400">Total Value</span><span className="text-sm font-semibold text-white">{fmt(project.totalValue)}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-zinc-400 flex items-center gap-1"><Minus className="w-3 h-3 text-red-400" />Model Cost</span><span className="text-sm font-semibold text-red-400">− {fmt(project.modelCost)}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-zinc-400 flex items-center gap-1"><Minus className="w-3 h-3 text-orange-400" />Editor Cost</span><span className="text-sm font-semibold text-orange-400">− {fmt(project.editorCost)}</span></div>
+                    <div className="h-px bg-yellow-500/30" />
+                    <div className="flex justify-between items-center"><span className="text-sm font-bold text-white">Net Profit</span><span className="text-base font-bold text-emerald-400">{fmt(project.totalValue - project.modelCost - project.editorCost)}</span></div>
+                  </>
+                )}
+              </div>
+
+              {/* Payment Tracking */}
+              {!editing && (
+                <div className="bg-zinc-900 border border-zinc-800/60 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Payment Tracking</div>
+                    <button onClick={() => setEditingPayment(!editingPayment)} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">{editingPayment ? "Cancel" : "Edit"}</button>
                   </div>
-                  <div className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/50">
-                    <p className="text-xs text-zinc-500 mb-1">Editor Cost</p>
-                    <p className="text-lg font-bold text-yellow-400">{formatCurrency(project.editorCost)}</p>
+                  {editingPayment ? (
+                    <div className="flex gap-2">
+                      <input type="number" value={paidAmt} onChange={(e) => setPaidAmt(+e.target.value)} className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white" placeholder="Paid amount ₹" />
+                      <button onClick={savePayment} disabled={paymentMut.isPending} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                        {paymentMut.isPending ? "..." : "Save"}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-emerald-500/10 rounded-xl p-2.5"><div className="text-[10px] text-emerald-400 mb-1">Received</div><div className="text-sm font-bold text-emerald-400">{fmt(project.paidAmount)}</div></div>
+                        <div className="bg-red-500/10 rounded-xl p-2.5"><div className="text-[10px] text-red-400 mb-1">Pending</div><div className="text-sm font-bold text-red-400">{fmt(pending)}</div></div>
+                        <div className="bg-zinc-800 rounded-xl p-2.5"><div className="text-[10px] text-zinc-400 mb-1">Total</div><div className="text-sm font-bold text-white">{fmt(project.totalValue)}</div></div>
+                      </div>
+                      <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${project.totalValue > 0 ? Math.min((project.paidAmount / project.totalValue) * 100, 100) : 0}%` }} />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Client & Editor */}
+              {!editing && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-zinc-900 border border-zinc-800/60 rounded-xl p-3 space-y-2">
+                    <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Client</div>
+                    <div className="text-sm font-semibold text-white">{project.clientName}</div>
+                    {project.clientPhone && <a href={`tel:${project.clientPhone}`} className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors"><Phone className="w-3 h-3" />{project.clientPhone}</a>}
+                    {project.clientEmail && <div className="flex items-center gap-1.5 text-xs text-zinc-500"><Mail className="w-3 h-3" />{project.clientEmail}</div>}
                   </div>
-                  <div className="bg-emerald-500/10 rounded-lg p-3 border border-emerald-500/20 col-span-3">
-                    <p className="text-xs text-zinc-500 mb-1">Net Profit</p>
-                    <p className="text-2xl font-bold text-emerald-400">{formatCurrency(netProfit)}</p>
+                  <div className="bg-zinc-900 border border-zinc-800/60 rounded-xl p-3 space-y-2">
+                    <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Editor</div>
+                    <div className="text-sm font-semibold text-white">{project.editorName || "Unassigned"}</div>
+                    {project.editorPhone && <div className="flex items-center gap-1.5 text-xs text-zinc-500"><Phone className="w-3 h-3" />{project.editorPhone}</div>}
+                    {project.deadline && <div className="flex items-center gap-1.5 text-xs text-amber-400"><Calendar className="w-3 h-3" />Due {new Date(project.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>}
                   </div>
                 </div>
+              )}
 
+              {/* Notes / Script */}
+              {!editing && (project.notes || project.script) && (
+                <div className="space-y-3">
+                  {project.notes && (<div className="bg-zinc-900 border border-zinc-800/60 rounded-xl p-3"><div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Notes</div><p className="text-sm text-zinc-300 whitespace-pre-wrap">{project.notes}</p></div>)}
+                  {project.script && (<div className="bg-zinc-900 border border-zinc-800/60 rounded-xl p-3"><div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Script</div><p className="text-sm text-zinc-300 whitespace-pre-wrap">{project.script}</p></div>)}
+                </div>
+              )}
+
+              {/* Edit fields */}
+              {editing && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-400">Deliverables</span>
-                    <span className="text-zinc-300">{project.completedDeliverables}/{project.totalDeliverables}</span>
-                  </div>
-                  <ProgressBar value={project.completedDeliverables} max={project.totalDeliverables} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-zinc-500">Status:</span> <Badge className={`ml-1 ${statusColors[project.status]}`}>{project.status.replace("_", " ")}</Badge></div>
-                  <div><span className="text-zinc-500">Type:</span> <span className="text-zinc-300 ml-1">{project.projectType.replace("_", " ")}</span></div>
-                  <div><span className="text-zinc-500">Deadline:</span> <span className="text-zinc-300 ml-1">{formatDate(project.deadline)}</span></div>
-                  <div><span className="text-zinc-500">Created:</span> <span className="text-zinc-300 ml-1">{formatDate(project.createdAt)}</span></div>
-                  <div><span className="text-zinc-500">Paid:</span> <span className="text-emerald-400 ml-1">{formatCurrency(project.paidAmount)}</span></div>
-                  <div><span className="text-zinc-500">Remaining:</span> <span className="text-red-400 ml-1">{formatCurrency(remaining)}</span></div>
-                </div>
-
-                {project.notes && <div className="bg-zinc-800/30 rounded-lg p-3 text-sm text-zinc-300 border border-zinc-700/50"><p className="text-xs text-zinc-500 mb-1">Notes</p>{project.notes}</div>}
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  {project.revisionRequested && <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/20">Customisation Requested</Badge>}
-                  <Button size="sm" variant="outline" className="border-zinc-700 text-xs" onClick={() => setRevision.mutate({ projectId: project.id, data: { revisionRequested: !project.revisionRequested } }, { onSuccess: invalidate })}>
-                    {project.revisionRequested ? "Clear Customisation" : "Flag Customisation"}
-                  </Button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Input type="number" className="bg-zinc-800 border-zinc-700 w-36" value={paidAmount} onChange={e => setPaidAmount(e.target.value)} placeholder="Paid amount" />
-                  <Button size="sm" data-testid="button-update-payment" onClick={handleUpdatePayment} disabled={updatePayment.isPending}><IndianRupee className="w-3.5 h-3.5 mr-1" />Update Payment</Button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {tab === "messages" && (
-          <div className="space-y-3">
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {!messages?.length ? <p className="text-zinc-500 text-sm">No messages yet.</p> : messages.map(m => (
-                <div key={m.id} className={`flex gap-2 ${m.senderRole === "admin" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-xs rounded-lg px-3 py-2 text-sm ${m.senderRole === "admin" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-200"}`}>
-                    <p className="font-medium text-xs mb-1 opacity-70">{m.senderName}</p>
-                    <p>{m.text}</p>
-                    <p className="text-xs opacity-50 mt-1">{new Date(m.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input className="bg-zinc-800 border-zinc-700 flex-1" placeholder="Type a message..." value={msgText} onChange={e => setMsgText(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSendMsg()} data-testid="input-message" />
-              <Button size="sm" onClick={handleSendMsg} disabled={sendMsg.isPending || !msgText.trim()} data-testid="button-send-message"><MessageSquare className="w-4 h-4" /></Button>
-            </div>
-          </div>
-        )}
-
-        {tab === "references" && (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              {!references?.length ? <p className="text-zinc-500 text-sm">No references yet.</p> : references.map(r => (
-                <div key={r.id} className="flex items-start justify-between bg-zinc-800/40 rounded-lg p-3 border border-zinc-700/50">
                   <div>
-                    <p className="text-sm font-medium text-zinc-200">{r.title}</p>
-                    {r.url && <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-blue-400 flex items-center gap-1 mt-0.5 hover:underline"><Link2 className="w-3 h-3" />{r.url}</a>}
+                    <label className="text-xs text-zinc-500 block mb-1">Assign Editor</label>
+                    <select value={editForm.editorId} onChange={(e) => setEditForm(f => ({ ...f, editorId: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                      <option value="">-- Select Editor --</option>
+                      {editors.map((ed) => <option key={ed.id} value={ed.id}>{ed.name}</option>)}
+                    </select>
                   </div>
-                  <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 p-1" onClick={() => deleteRef.mutate({ referenceId: r.id }, { onSuccess: () => qc.invalidateQueries({ queryKey: ["references", project.id] as any }) })}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  <div><label className="text-xs text-zinc-500 block mb-1">Deadline</label><input type="date" value={editForm.deadline?.split("T")[0] ?? ""} onChange={(e) => setEditForm(f => ({ ...f, deadline: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white" /></div>
+                  <div><label className="text-xs text-zinc-500 block mb-1">Notes</label><textarea rows={3} value={editForm.notes ?? ""} onChange={(e) => setEditForm(f => ({ ...f, notes: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white resize-none" /></div>
+                  <div><label className="text-xs text-zinc-500 block mb-1">Script</label><textarea rows={3} value={editForm.script ?? ""} onChange={(e) => setEditForm(f => ({ ...f, script: e.target.value }))} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white resize-none" /></div>
                 </div>
-              ))}
+              )}
+
+              {editing && (
+                <div className="flex gap-2 pt-2">
+                  <button onClick={saveEdit} disabled={updateMut.isPending} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                    {updateMut.isPending ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button onClick={() => setEditing(false)} className="px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 text-sm hover:bg-zinc-700 transition-colors">Cancel</button>
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === "references" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">References</h3>
+                <button onClick={() => setAddingRef(!addingRef)} className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                  <Plus className="w-3.5 h-3.5" />Add Reference
+                </button>
+              </div>
+              {addingRef && (
+                <div className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl p-4 space-y-2">
+                  <input value={newRefTitle} onChange={(e) => setNewRefTitle(e.target.value)} placeholder="Title" className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600" />
+                  <input value={newRefUrl} onChange={(e) => setNewRefUrl(e.target.value)} placeholder="URL (https://...)" className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600" />
+                  <input value={newRefNote} onChange={(e) => setNewRefNote(e.target.value)} placeholder="Note (optional)" className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600" />
+                  <div className="flex gap-2">
+                    <button onClick={addRef} disabled={addRefMut.isPending || !newRefTitle || !newRefUrl} className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors">Add</button>
+                    <button onClick={() => setAddingRef(false)} className="px-4 py-2 rounded-xl bg-zinc-700 text-zinc-300 text-sm hover:bg-zinc-600 transition-colors">Cancel</button>
+                  </div>
+                </div>
+              )}
+              {refs.length === 0 ? (
+                <div className="text-center py-10 text-zinc-500">
+                  <Link2 className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No references yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {refs.map((ref) => (
+                    <div key={ref.id} className="flex items-start gap-3 p-3 bg-zinc-800/60 border border-zinc-700/60 rounded-xl">
+                      <Link2 className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white">{ref.title}</p>
+                        {ref.url && <a href={ref.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 mt-0.5"><ExternalLink className="w-3 h-3 flex-shrink-0" /><span className="truncate">{ref.url}</span></a>}
+                        {ref.note && <p className="text-xs text-zinc-500 mt-0.5">{ref.note}</p>}
+                      </div>
+                      <button onClick={async () => { await deleteRefMut.mutateAsync({ refId: ref.id }); refetchRefs(); }} className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="space-y-2 border-t border-zinc-800 pt-3">
-              <Input className="bg-zinc-800 border-zinc-700" placeholder="Reference title" value={refTitle} onChange={e => setRefTitle(e.target.value)} data-testid="input-ref-title" />
-              <Input className="bg-zinc-800 border-zinc-700" placeholder="URL (optional)" value={refUrl} onChange={e => setRefUrl(e.target.value)} />
-              <Button size="sm" onClick={handleAddRef} disabled={!refTitle.trim() || addRef.isPending} data-testid="button-add-reference">Add Reference</Button>
+          )}
+
+          {tab === "chat" && (
+            <div className="flex flex-col space-y-3" style={{ minHeight: "320px" }}>
+              <div className="flex-1 overflow-y-auto space-y-2 max-h-56">
+                {messages.length === 0 ? (
+                  <div className="text-center py-10 text-zinc-500">
+                    <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No messages yet. Start the conversation!</p>
+                  </div>
+                ) : (
+                  messages.map((msg) => {
+                    const isAdmin = msg.senderRole === "admin";
+                    return (
+                      <div key={msg.id} className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 ${isAdmin ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-100"}`}>
+                          {!isAdmin && <p className="text-[10px] font-semibold text-zinc-400 mb-0.5">{msg.senderName}</p>}
+                          <p className="text-sm">{msg.text}</p>
+                          <p className={`text-[10px] mt-0.5 ${isAdmin ? "text-blue-200" : "text-zinc-500"}`}>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <input value={msgText} onChange={(e) => setMsgText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMsg()} placeholder="Type a message..." className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600" />
+                <button onClick={sendMsg} disabled={sendMsgMut.isPending || !msgText.trim()} className="p-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function Projects() {
-  const { data: projects, isLoading } = useListProjects({ query: { queryKey: getListProjectsQueryKey() } });
-  const { data: editors } = useListEditors({ query: { queryKey: getListEditorsQueryKey() } });
+  const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterType, setFilterType] = useState("all");
   const [selected, setSelected] = useState<Project | null>(null);
-  const [creating, setCreating] = useState(false);
+  const { data: projects = [], isLoading } = useListProjects({ query: { refetchInterval: 30000 } });
+  const { data: editors = [] } = useListEditors();
 
-  const filtered = (projects || []).filter(p => {
-    if (filterStatus !== "all" && p.status !== filterStatus) return false;
-    if (filterType !== "all" && p.projectType !== filterType) return false;
-    const q = search.toLowerCase();
-    return !q || p.projectName.toLowerCase().includes(q) || p.clientName.toLowerCase().includes(q) || p.editorName.toLowerCase().includes(q);
-  });
+  const filtered = useMemo(() => {
+    let list = projects;
+    if (filter !== "All") list = list.filter((p) => p.status === statusKey(filter));
+    if (search.trim()) list = list.filter((p) =>
+      p.projectName.toLowerCase().includes(search.toLowerCase()) ||
+      p.clientName.toLowerCase().includes(search.toLowerCase())
+    );
+    return list;
+  }, [projects, filter, search]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Projects</h2>
-          <p className="text-zinc-400 text-sm mt-0.5">{projects?.length ?? 0} total projects</p>
+          <h1 className="text-xl font-bold text-white">Projects</h1>
+          <p className="text-sm text-zinc-500 mt-0.5">{projects.length} total projects</p>
         </div>
-        <Button data-testid="button-new-project" onClick={() => setCreating(true)}><Plus className="w-4 h-4 mr-2" />New Project</Button>
+        <Link href="/create" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+          + New Project
+        </Link>
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-48">
+      {/* Search + Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-          <Input data-testid="input-search-projects" className="bg-zinc-900 border-zinc-800 pl-9" placeholder="Search projects, clients, editors..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search projects..." className="w-full pl-9 pr-4 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white placeholder-zinc-600" />
+          {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"><X className="w-3.5 h-3.5" /></button>}
         </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="bg-zinc-900 border-zinc-800 w-40" data-testid="select-filter-status"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-zinc-900 border-zinc-800">
-            <SelectItem value="all">All Status</SelectItem>
-            {STATUSES.map(s => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="bg-zinc-900 border-zinc-800 w-44"><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-zinc-900 border-zinc-800">
-            <SelectItem value="all">All Types</SelectItem>
-            {PROJECT_TYPES.map(t => <SelectItem key={t} value={t}>{t.replace("_", " ")}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          {STATUS_OPTS.map((s) => (
+            <button key={s} onClick={() => setFilter(s)} className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${filter === s ? "bg-blue-500 text-white" : "bg-zinc-900 border border-zinc-800/60 text-zinc-400 hover:text-white hover:border-zinc-700"}`}>{s}</button>
+          ))}
+        </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-zinc-800">
-              {["Project", "Client", "Type", "Status", "Editor", "Value", "Progress", "Deadline"].map(h => (
-                <th key={h} className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider px-4 py-3">{h}</th>
-              ))}
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800/50">
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="animate-pulse">
-                  {Array.from({ length: 9 }).map((_, j) => <td key={j} className="px-4 py-3"><div className="h-4 bg-zinc-800 rounded" /></td>)}
-                </tr>
-              ))
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-12 text-center text-zinc-500">No projects found.</td></tr>
-            ) : filtered.map(p => {
-              const StatusIcon = statusIcons[p.status];
-              return (
-                <tr key={p.id} className="hover:bg-zinc-800/30 cursor-pointer transition-colors" onClick={() => setSelected(p)} data-testid={`row-project-${p.id}`}>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-sm text-white">{p.projectName}</div>
-                    {p.revisionRequested && <span className="text-xs text-orange-400">Customisation</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-zinc-300">{p.clientName}</td>
-                  <td className="px-4 py-3"><Badge className={`text-xs ${typeColors[p.projectType] || typeColors.other}`}>{p.projectType.replace("_", " ")}</Badge></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <StatusIcon className={`w-3.5 h-3.5 ${p.status === "completed" ? "text-emerald-400" : p.status === "in_progress" ? "text-blue-400" : "text-yellow-400"}`} />
-                      <span className={`text-xs font-medium ${p.status === "completed" ? "text-emerald-400" : p.status === "in_progress" ? "text-blue-400" : "text-yellow-400"}`}>{p.status.replace("_", " ")}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-zinc-300">{p.editorName}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-white">{formatCurrency(p.totalValue)}</td>
-                  <td className="px-4 py-3 w-32"><ProgressBar value={p.completedDeliverables} max={p.totalDeliverables} /></td>
-                  <td className="px-4 py-3 text-sm text-zinc-400">{formatDate(p.deadline)}</td>
-                  <td className="px-4 py-3"><ChevronRight className="w-4 h-4 text-zinc-600" /></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <div className="text-xs text-zinc-500">{filtered.length} project{filtered.length !== 1 ? "s" : ""}</div>
 
-      {selected && <ProjectDetailModal project={selected} editors={editors || []} onClose={() => setSelected(null)} />}
-      {creating && <CreateProjectModal editors={editors || []} onClose={() => setCreating(false)} />}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => <div key={i} className="bg-zinc-900 border border-zinc-800/60 rounded-2xl h-40 animate-pulse" />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20 space-y-3">
+          <AlertCircle className="w-12 h-12 text-zinc-700 mx-auto" />
+          <p className="text-zinc-400">{search ? "No projects match your search" : "No projects yet. Create one!"}</p>
+          {!search && <Link href="/create" className="text-sm text-blue-400 hover:text-blue-300 block">+ Create Project</Link>}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((p) => <ProjectCard key={p.id} project={p} onOpen={() => setSelected(p)} />)}
+        </div>
+      )}
+
+      {selected && <ProjectDetailModal project={selected} onClose={() => setSelected(null)} editors={editors} />}
     </div>
   );
 }

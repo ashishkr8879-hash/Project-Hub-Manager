@@ -176,7 +176,6 @@ export default function EditorProfileScreen() {
                       <Text style={[styles.projectRowName, { color: colors.foreground }]} numberOfLines={1}>{p.projectName}</Text>
                       <Text style={[styles.projectRowClient, { color: colors.mutedForeground }]} numberOfLines={1}>{p.clientName}</Text>
                       <View style={styles.projectRowMeta}>
-                        <Text style={[styles.projectRowValue, { color: colors.success }]}>₹{(p.totalValue ?? 0).toLocaleString()}</Text>
                         <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>{p.completedDeliverables ?? 0}/{p.totalDeliverables ?? 0} deliverables</Text>
                       </View>
                     </View>

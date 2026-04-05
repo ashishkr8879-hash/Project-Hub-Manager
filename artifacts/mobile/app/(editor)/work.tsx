@@ -169,7 +169,11 @@ export default function WorkScreen() {
   });
 
   const rejectedVideos = allVideos.filter((v) => v.status === "rejected");
-  const approvedVideos = allVideos.filter((v) => v.status === "approved");
+  const approvedVideos = allVideos.filter(
+    (v) =>
+      v.status === "approved" ||
+      projects.some((p) => p.id === v.projectId && p.status === "completed")
+  );
   const activeProjects = projects.filter((p) => p.status !== "completed");
 
   async function handleMarkInProgress(project: Project) {
@@ -368,6 +372,7 @@ export default function WorkScreen() {
 
   function renderApproved({ item }: { item: VideoSubmission }) {
     const project = projects.find((p) => p.id === item.projectId);
+    const isAdminApproved = item.status === "approved";
     const reviewedDate = item.reviewedAt
       ? new Date(item.reviewedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
       : new Date(item.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -378,15 +383,19 @@ export default function WorkScreen() {
             <Text style={[styles.projectName, { color: colors.foreground }]} numberOfLines={1}>{item.fileName}</Text>
             <Text style={[styles.clientName, { color: colors.mutedForeground }]}>{project?.projectName ?? item.projectId}</Text>
           </View>
-          <View style={[styles.rejBadge, { backgroundColor: "#dcfce7" }]}>
-            <Feather name="check-circle" size={11} color={colors.success} />
-            <Text style={[styles.rejBadgeText, { color: "#15803d" }]}>Approved</Text>
+          <View style={[styles.rejBadge, { backgroundColor: isAdminApproved ? "#dcfce7" : "#d1fae5" }]}>
+            <Feather name={isAdminApproved ? "check-circle" : "award"} size={11} color={colors.success} />
+            <Text style={[styles.rejBadgeText, { color: "#15803d" }]}>
+              {isAdminApproved ? "Approved" : "Completed"}
+            </Text>
           </View>
         </View>
 
         <View style={[styles.noteRow, { backgroundColor: "#f0fdf4" }]}>
-          <Feather name="thumbs-up" size={12} color={colors.success} />
-          <Text style={[styles.noteText, { color: "#15803d" }]}>Admin approved this submission</Text>
+          <Feather name={isAdminApproved ? "thumbs-up" : "check-square"} size={12} color={colors.success} />
+          <Text style={[styles.noteText, { color: "#15803d" }]}>
+            {isAdminApproved ? "Admin approved this submission" : "Project marked as completed"}
+          </Text>
         </View>
 
         <View style={styles.metaRow}>

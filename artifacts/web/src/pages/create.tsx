@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useListClients, useListEditors, useCreateClient, useCreateProject } from "@workspace/api-client-react";
+import { useListClients, useListEditors, useCreateClient, useCreateProject, useAddProjectReference } from "@workspace/api-client-react";
 import type { CreateProjectBody } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
   ChevronLeft, ChevronRight, Check, Plus, X, User, Building2,
-  Calendar, FileText, DollarSign, Film, Star,
+  Calendar, FileText, DollarSign, Film, Star, Upload, Link2, Paperclip, BookOpen,
 } from "lucide-react";
 
 type ProjectType = "ugc" | "ai_video" | "editing" | "branded" | "corporate" | "wedding" | "social_media" | "graphic_design" | "ads_setup" | "website" | "other";
@@ -43,6 +43,10 @@ const TYPE_TO_SPEC: Record<ProjectType, string | null> = {
   other: null,
 };
 
+type AttachItem = { id: string; title: string; url?: string; fileName?: string; type: "link" | "file"; note?: string };
+
+function genId() { return Math.random().toString(36).slice(2, 9); }
+
 export default function Create() {
   const qc = useQueryClient();
   const [, setLocation] = useLocation();
@@ -51,6 +55,7 @@ export default function Create() {
   const { data: editors = [] } = useListEditors();
   const createProjectMut = useCreateProject();
   const createClientMut = useCreateClient();
+  const addRefMut = useAddProjectReference();
 
   // Step state
   const [step, setStep] = useState<"type" | "client" | "details" | "success">("type");
@@ -67,6 +72,12 @@ export default function Create() {
     projectName: "", totalValue: "", modelCost: "0", editorCost: "0",
     totalDeliverables: "1", editorId: "", deadline: "", notes: "", script: "",
   });
+
+  // File Upload & References
+  const [attachments, setAttachments] = useState<AttachItem[]>([]);
+  const [references, setReferences] = useState<AttachItem[]>([]);
+  const [attachInput, setAttachInput] = useState<{ type: "file" | "link"; title: string; value: string } | null>(null);
+  const [refInput, setRefInput] = useState<{ type: "file" | "link"; title: string; value: string } | null>(null);
 
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -129,6 +140,14 @@ export default function Create() {
         status: "pending",
       };
       const created = await createProjectMut.mutateAsync({ data: payload });
+      const pid = (created as any).id;
+      // Add attachments and references after project creation
+      for (const a of attachments) {
+        await addRefMut.mutateAsync({ projectId: pid, data: { title: a.title, url: a.url, fileName: a.fileName, note: "attachment", fileType: a.type === "file" ? "file" : "link" } });
+      }
+      for (const r of references) {
+        await addRefMut.mutateAsync({ projectId: pid, data: { title: r.title, url: r.url, fileName: r.fileName, note: r.note ?? "reference" } });
+      }
       qc.invalidateQueries({ queryKey: ["/api/projects"] });
       qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
       setCreatedProject(created);
@@ -391,6 +410,134 @@ export default function Create() {
           <div>
             <label className="text-xs text-zinc-500 block mb-1">Script</label>
             <textarea value={form.script} onChange={(e) => setForm(f => ({ ...f, script: e.target.value }))} rows={3} placeholder="Script or brief..." className="w-full bg-zinc-900 border border-zinc-800/60 rounded-xl px-3 py-2.5 text-sm text-white resize-none placeholder-zinc-600" />
+          </div>
+
+          {/* ── FILE UPLOAD (OPTIONAL) ── */}
+          <div className="space-y-2">
+            <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">File Upload <span className="font-normal normal-case">(Optional)</span></p>
+            {attachments.length > 0 && (
+              <div className="space-y-1.5">
+                {attachments.map((a) => (
+                  <div key={a.id} className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-3 py-2">
+                    {a.type === "file" ? <Paperclip className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" /> : <Link2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />}
+                    <span className="text-xs text-white flex-1 truncate">{a.title}</span>
+                    <button onClick={() => setAttachments((p) => p.filter((x) => x.id !== a.id))} className="text-zinc-600 hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {attachInput && (
+              <div className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl p-3 space-y-2">
+                <input
+                  autoFocus
+                  value={attachInput.title}
+                  onChange={(e) => setAttachInput((p) => p ? { ...p, title: e.target.value } : p)}
+                  placeholder={attachInput.type === "file" ? "File name (e.g. brand_kit.zip)" : "Label (e.g. Drive Link)"}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600"
+                />
+                {attachInput.type === "link" && (
+                  <input
+                    value={attachInput.value}
+                    onChange={(e) => setAttachInput((p) => p ? { ...p, value: e.target.value } : p)}
+                    placeholder="URL (https://...)"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600"
+                  />
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (!attachInput.title.trim()) return;
+                      setAttachments((p) => [...p, { id: genId(), title: attachInput.title.trim(), url: attachInput.type === "link" ? attachInput.value.trim() || undefined : undefined, fileName: attachInput.type === "file" ? attachInput.title.trim() : undefined, type: attachInput.type }]);
+                      setAttachInput(null);
+                    }}
+                    className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
+                    disabled={!attachInput.title.trim()}
+                  >Add</button>
+                  <button onClick={() => setAttachInput(null)} className="px-4 py-2 rounded-xl bg-zinc-700 text-zinc-300 text-sm hover:bg-zinc-600">Cancel</button>
+                </div>
+              </div>
+            )}
+            {!attachInput && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAttachInput({ type: "file", title: "", value: "" })}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-700/60 bg-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-600 text-xs font-semibold transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5" />Attach File
+                </button>
+                <button
+                  onClick={() => setAttachInput({ type: "link", title: "", value: "" })}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-700/60 bg-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-600 text-xs font-semibold transition-colors"
+                >
+                  <Link2 className="w-3.5 h-3.5" />Add Link
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── REFERENCES (OPTIONAL) ── */}
+          <div className="space-y-2">
+            <div>
+              <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">References <span className="font-normal normal-case">(Optional)</span></p>
+              <p className="text-[11px] text-zinc-600 mt-0.5">Add briefs, moodboards, links, or any files for the editor.</p>
+            </div>
+            {references.length > 0 && (
+              <div className="space-y-1.5">
+                {references.map((r) => (
+                  <div key={r.id} className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-3 py-2">
+                    {r.type === "file" ? <BookOpen className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" /> : <Link2 className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
+                    <span className="text-xs text-white flex-1 truncate">{r.title}</span>
+                    {r.url && <span className="text-[10px] text-zinc-500 truncate max-w-[100px]">{r.url}</span>}
+                    <button onClick={() => setReferences((p) => p.filter((x) => x.id !== r.id))} className="text-zinc-600 hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {refInput && (
+              <div className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl p-3 space-y-2">
+                <input
+                  autoFocus
+                  value={refInput.title}
+                  onChange={(e) => setRefInput((p) => p ? { ...p, title: e.target.value } : p)}
+                  placeholder={refInput.type === "file" ? "File name (e.g. moodboard.pdf)" : "Label (e.g. Brand Guidelines)"}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600"
+                />
+                <input
+                  value={refInput.value}
+                  onChange={(e) => setRefInput((p) => p ? { ...p, value: e.target.value } : p)}
+                  placeholder="URL (https://...)"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (!refInput.title.trim()) return;
+                      setReferences((p) => [...p, { id: genId(), title: refInput.title.trim(), url: refInput.value.trim() || undefined, fileName: refInput.type === "file" ? refInput.title.trim() : undefined, type: refInput.type }]);
+                      setRefInput(null);
+                    }}
+                    className="flex-1 py-2 rounded-xl bg-amber-600 text-white text-sm hover:bg-amber-700 disabled:opacity-50"
+                    disabled={!refInput.title.trim()}
+                  >Add</button>
+                  <button onClick={() => setRefInput(null)} className="px-4 py-2 rounded-xl bg-zinc-700 text-zinc-300 text-sm hover:bg-zinc-600">Cancel</button>
+                </div>
+              </div>
+            )}
+            {!refInput && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setRefInput({ type: "file", title: "", value: "" })}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-700/60 bg-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-600 text-xs font-semibold transition-colors"
+                >
+                  <Upload className="w-3.5 h-3.5" />Upload File Ref
+                </button>
+                <button
+                  onClick={() => setRefInput({ type: "link", title: "", value: "" })}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-700/60 bg-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-600 text-xs font-semibold transition-colors"
+                >
+                  <Link2 className="w-3.5 h-3.5" />Add Link
+                </button>
+              </div>
+            )}
           </div>
 
           {error && <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{error}</div>}

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useListEditorProjects, useSubmitVideo, useListMessages, useSendMessage, useUpdateProjectStatus } from "@workspace/api-client-react";
+import { useListEditorProjects, useSubmitVideo, useListMessages, useSendMessage, useUpdateProjectStatus, useListProjectReferences } from "@workspace/api-client-react";
 import {
-  Clock, CheckCircle2, ChevronDown, ChevronUp, Upload, MessageSquare, Send, AlertCircle, X, FileImage, FileVideo, FileText, Globe, BarChart2,
+  Clock, CheckCircle2, ChevronDown, ChevronUp, Upload, MessageSquare, Send, AlertCircle, X, FileImage, FileVideo, FileText, Globe, BarChart2, Link2, Paperclip, BookOpen, ExternalLink,
 } from "lucide-react";
 
 const STATUS_STYLES: Record<string, { label: string; bg: string; text: string }> = {
@@ -114,6 +114,36 @@ function SubmitWorkModal({
             <button onClick={onClose} className="px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 text-sm hover:bg-zinc-700">Cancel</button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectReferences({ projectId, color }: { projectId: string; color: string }) {
+  const { data: refs = [] } = useListProjectReferences(projectId, { query: { staleTime: 60000 } });
+  if (refs.length === 0) return null;
+  return (
+    <div className="border border-zinc-800/60 rounded-xl overflow-hidden">
+      <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-3 py-2 border-b border-zinc-800/60 bg-zinc-900/40 flex items-center gap-1.5">
+        <BookOpen className="w-3 h-3" />Briefs & References from Admin
+      </div>
+      <div className="p-2 space-y-1.5">
+        {refs.map((r: any) => (
+          <div key={r.id} className="flex items-center gap-2 px-2.5 py-2 bg-zinc-800/40 rounded-lg">
+            {r.url ? <Link2 className="w-3 h-3 flex-shrink-0" style={{ color }} /> : <Paperclip className="w-3 h-3 flex-shrink-0" style={{ color }} />}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-white truncate">{r.title}</p>
+              {r.note && r.note !== "attachment" && r.note !== "reference" && (
+                <p className="text-[10px] text-zinc-500">{r.note}</p>
+              )}
+            </div>
+            {r.url && (
+              <a href={r.url} target="_blank" rel="noopener noreferrer" className="p-1 rounded text-zinc-500 hover:text-white transition-colors flex-shrink-0">
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -278,6 +308,9 @@ export default function EditorProjects() {
                         <p className="text-xs text-zinc-300 leading-relaxed">{p.notes}</p>
                       </div>
                     )}
+
+                    {/* References from admin */}
+                    <ProjectReferences projectId={p.id} color={cfg.color} />
 
                     {/* Actions */}
                     <div className="flex gap-2">

@@ -11,6 +11,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -202,12 +203,16 @@ export default function WorkScreen() {
     const pendingReview = projectVideos.filter((v) => v.status === "pending_review").length;
 
     return (
-      <View style={[
-        styles.card,
-        { backgroundColor: colors.card, borderColor: isCompleted ? "#dcfce7" : item.revisionRequested ? "#fde047" : colors.border },
-        item.revisionRequested && { borderWidth: 2 },
-        { opacity: isCompleted ? 0.75 : 1 },
-      ]}>
+      <TouchableOpacity
+        activeOpacity={0.92}
+        onPress={() => setDetailProject(item)}
+        style={[
+          styles.card,
+          { backgroundColor: colors.card, borderColor: isCompleted ? "#dcfce7" : item.revisionRequested ? "#fde047" : colors.border },
+          item.revisionRequested && { borderWidth: 2 },
+          { opacity: isCompleted ? 0.75 : 1 },
+        ]}
+      >
         <View style={styles.cardHeader}>
           <View style={styles.cardTitles}>
             <Text style={[styles.projectName, { color: colors.foreground }]} numberOfLines={1}>{item.projectName}</Text>
@@ -257,7 +262,7 @@ export default function WorkScreen() {
         {!isCompleted && (
           <View style={styles.actions}>
             {item.status === "pending" && (
-              <TouchableOpacity onPress={() => handleMarkInProgress(item)} disabled={isUpdating}
+              <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); handleMarkInProgress(item); }} disabled={isUpdating}
                 style={[styles.actionBtn, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30`, flex: 1 }]}>
                 {isUpdating ? <ActivityIndicator size="small" color={colors.primary} />
                   : <><Feather name="play" size={14} color={colors.primary} /><Text style={[styles.actionText, { color: colors.primary }]}>Start Work</Text></>}
@@ -265,12 +270,12 @@ export default function WorkScreen() {
             )}
             {item.status === "in_progress" && (
               <>
-                <TouchableOpacity onPress={() => handleAddDeliverable(item)} disabled={isUpdating}
+                <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); handleAddDeliverable(item); }} disabled={isUpdating}
                   style={[styles.actionBtn, { backgroundColor: `${theme.primary}15`, borderColor: `${theme.primary}30`, flex: 1 }]}>
                   {isUpdating ? <ActivityIndicator size="small" color={theme.primary} />
                     : <><Feather name="check" size={14} color={theme.primary} /><Text style={[styles.actionText, { color: theme.primary }]}>Mark Done</Text></>}
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setUploadModal(item)}
+                <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setUploadModal(item); }}
                   style={[styles.actionBtn, { backgroundColor: `${colors.success}15`, borderColor: `${colors.success}30` }]}>
                   <Feather name="upload" size={14} color={colors.success} />
                   <Text style={[styles.actionText, { color: colors.success }]}>Upload</Text>
@@ -279,7 +284,7 @@ export default function WorkScreen() {
             )}
             {/* Chat / Customise button — always visible for active projects */}
             <TouchableOpacity
-              onPress={() => setChatProject(item)}
+              onPress={(e) => { e.stopPropagation?.(); setChatProject(item); }}
               style={[
                 styles.actionBtn,
                 { backgroundColor: item.revisionRequested ? "#fef3c7" : `${theme.primary}12`, borderColor: item.revisionRequested ? "#f59e0b" : `${theme.primary}30` },
@@ -290,37 +295,28 @@ export default function WorkScreen() {
                 {item.revisionRequested ? "Customise!" : "Chat"}
               </Text>
             </TouchableOpacity>
-            {/* Project Details button */}
-            <TouchableOpacity
-              onPress={() => setDetailProject(item)}
-              style={[styles.actionBtn, { backgroundColor: `${colors.mutedForeground}10`, borderColor: `${colors.mutedForeground}25` }]}
-            >
-              <Feather name="info" size={14} color={colors.mutedForeground} />
-              <Text style={[styles.actionText, { color: colors.mutedForeground }]}>Details</Text>
-            </TouchableOpacity>
           </View>
         )}
 
-        {/* Chat + Details buttons for completed projects */}
+        {/* Chat button for completed projects */}
         {isCompleted && (
           <View style={styles.actions}>
             <TouchableOpacity
-              onPress={() => setChatProject(item)}
+              onPress={(e) => { e.stopPropagation?.(); setChatProject(item); }}
               style={[styles.actionBtn, { backgroundColor: `${theme.primary}10`, borderColor: `${theme.primary}20` }]}
             >
               <Feather name="message-circle" size={13} color={theme.primary} />
               <Text style={[styles.actionText, { color: theme.primary, fontSize: 12 }]}>Chat</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setDetailProject(item)}
-              style={[styles.actionBtn, { backgroundColor: `${colors.mutedForeground}10`, borderColor: `${colors.mutedForeground}25` }]}
-            >
-              <Feather name="info" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.actionText, { color: colors.mutedForeground, fontSize: 12 }]}>Details</Text>
-            </TouchableOpacity>
           </View>
         )}
-      </View>
+
+        {/* Tap hint */}
+        <View style={styles.tapHintRow}>
+          <Feather name="info" size={10} color={colors.mutedForeground} />
+          <Text style={[styles.tapHintText, { color: colors.mutedForeground }]}>Tap card for full details, files & brief</Text>
+        </View>
+      </TouchableOpacity>
     );
   }
 
@@ -665,26 +661,48 @@ function ProjectDetailModal({
             {/* Brief / Notes */}
             {project.notes && (
               <View style={[styles.dtSection, { borderColor: colors.border }]}>
-                <View style={styles.dtSectionHeader}>
-                  <Feather name="align-left" size={14} color={theme.primary} />
-                  <Text style={[styles.dtSectionTitle, { color: colors.foreground }]}>Brief / Notes</Text>
+                <View style={[styles.dtSectionHeader, { justifyContent: "space-between" }]}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Feather name="align-left" size={14} color={theme.primary} />
+                    <Text style={[styles.dtSectionTitle, { color: colors.foreground }]}>Brief / Notes</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => Share.share({ title: `Brief – ${project.projectName}`, message: project.notes! }).catch(() => {})}
+                    style={[styles.dtShareBtn, { backgroundColor: `${theme.primary}15` }]}
+                  >
+                    <Feather name="share-2" size={13} color={theme.primary} />
+                    <Text style={[styles.dtShareBtnText, { color: theme.primary }]}>Share</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={[styles.dtNote, { color: colors.foreground, backgroundColor: colors.muted }]}>
-                  {project.notes}
-                </Text>
+                <ScrollView style={{ maxHeight: 160 }} showsVerticalScrollIndicator={false}>
+                  <Text style={[styles.dtNote, { color: colors.foreground, backgroundColor: colors.muted }]}>
+                    {project.notes}
+                  </Text>
+                </ScrollView>
               </View>
             )}
 
             {/* Script */}
             {project.script && (
               <View style={[styles.dtSection, { borderColor: colors.border }]}>
-                <View style={styles.dtSectionHeader}>
-                  <Feather name="file-text" size={14} color={theme.primary} />
-                  <Text style={[styles.dtSectionTitle, { color: colors.foreground }]}>Script</Text>
+                <View style={[styles.dtSectionHeader, { justifyContent: "space-between" }]}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Feather name="file-text" size={14} color={theme.primary} />
+                    <Text style={[styles.dtSectionTitle, { color: colors.foreground }]}>Script</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => Share.share({ title: `Script – ${project.projectName}`, message: project.script! }).catch(() => {})}
+                    style={[styles.dtShareBtn, { backgroundColor: `${theme.primary}15` }]}
+                  >
+                    <Feather name="share-2" size={13} color={theme.primary} />
+                    <Text style={[styles.dtShareBtnText, { color: theme.primary }]}>Share / Save</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={[styles.dtNote, { color: colors.foreground, backgroundColor: colors.muted }]}>
-                  {project.script}
-                </Text>
+                <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+                  <Text style={[styles.dtNote, { color: colors.foreground, backgroundColor: colors.muted }]}>
+                    {project.script}
+                  </Text>
+                </ScrollView>
               </View>
             )}
 
@@ -1142,6 +1160,8 @@ const styles = StyleSheet.create({
   refSaveBtn: { alignItems: "center", padding: 12, borderRadius: 12 },
   refSaveBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   emptyRefs: { alignItems: "center", padding: 32, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", gap: 8, marginTop: 8 },
+  tapHintRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  tapHintText: { fontSize: 10, fontFamily: "Inter_400Regular" },
   // ── Project Detail Modal styles ──
   dtTypeBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   dtTypeBadgeText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
@@ -1170,6 +1190,8 @@ const styles = StyleSheet.create({
   dtRefSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   dtRefNote: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
   dtRefOpenBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  dtShareBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  dtShareBtnText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   dtRevisionBanner: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
   dtActions: { flexDirection: "row", gap: 10, paddingTop: 12 },
   dtActionBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 13, borderRadius: 14 },

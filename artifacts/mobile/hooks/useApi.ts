@@ -7,7 +7,7 @@ const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
 export interface Editor {
   id: string; name: string; email: string; username?: string;
   phone: string; specialization: string; joinedAt: string;
-  bankAccount?: string; location?: string;
+  bankAccount?: string; location?: string; monthlySalary?: number;
 }
 
 export interface EditorFull extends Editor {
@@ -20,7 +20,7 @@ export interface Project {
   id: string;
   clientId?: string; clientName: string; clientPhone?: string; clientEmail?: string;
   projectName: string; projectType: ProjectType;
-  totalValue: number; modelCost: number;
+  totalValue: number; modelCost: number; editorCost: number;
   totalDeliverables: number; editorId: string; editorName: string; editorPhone?: string;
   status: "pending" | "in_progress" | "completed";
   completedDeliverables: number;
@@ -176,12 +176,25 @@ export interface CreateProjectPayload {
   clientId?: string; clientName: string; clientPhone?: string; clientEmail?: string;
   clientBusinessType?: string; clientCity?: string;
   projectName: string; projectType: ProjectType;
-  totalValue: number; modelCost?: number; totalDeliverables: number;
+  totalValue: number; modelCost?: number; editorCost?: number; totalDeliverables: number;
   editorId: string; deadline?: string; notes?: string; script?: string;
+}
+
+export interface UpdateProjectPayload {
+  projectName?: string; clientName?: string; clientPhone?: string; clientEmail?: string;
+  totalValue?: number; modelCost?: number; editorCost?: number;
+  totalDeliverables?: number; editorId?: string;
+  deadline?: string; notes?: string; script?: string; status?: Project["status"];
 }
 
 export const createProject = (p: CreateProjectPayload) =>
   apiFetch<Project>("/projects", { method: "POST", body: JSON.stringify(p) });
+
+export const updateProject = (id: string, p: UpdateProjectPayload) =>
+  apiFetch<Project>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(p) });
+
+export const deleteProject = (id: string) =>
+  apiFetch<{ success: boolean }>(`/projects/${id}`, { method: "DELETE" });
 
 export const updateProjectPayment = (id: string, paidAmount: number) =>
   apiFetch<Project>(`/projects/${id}/payment`, { method: "PATCH", body: JSON.stringify({ paidAmount }) });

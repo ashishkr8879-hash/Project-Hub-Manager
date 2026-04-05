@@ -80,6 +80,7 @@ export default function CreateProjectScreen() {
   const [projectName, setProjectName]             = useState("");
   const [totalValue, setTotalValue]               = useState("");
   const [modelCost, setModelCost]                 = useState("");
+  const [editorCost, setEditorCost]               = useState("");
   const [totalDeliverables, setTotalDeliverables] = useState("");
   const [deadline, setDeadline]                   = useState("");
   const [notes, setNotes]                         = useState("");
@@ -182,7 +183,7 @@ export default function CreateProjectScreen() {
   function resetForm() {
     setProjectType("ugc"); setSelectedClient(null);
     setCustomClientName(""); setCustomClientPhone(""); setCustomClientEmail(""); setCustomClientBiz("Other"); setCustomClientCity("");
-    setProjectName(""); setTotalValue(""); setModelCost(""); setTotalDeliverables("");
+    setProjectName(""); setTotalValue(""); setModelCost(""); setEditorCost(""); setTotalDeliverables("");
     setDeadline(""); setNotes(""); setScript(""); setSelectedEditor(null);
     setExtraField1(""); setExtraField2(""); setShowExtraPicker1(false); setShowExtraPicker2(false);
     setRefs([]); setCreatedProject(null); setAddingRef(false); setRefMode(null);
@@ -214,6 +215,7 @@ export default function CreateProjectScreen() {
         projectType,
         totalValue: tv,
         modelCost: (isUGC || isAI) ? mc : 0,
+        editorCost: parseFloat(editorCost) || 0,
         totalDeliverables: parseInt(totalDeliverables, 10),
         editorId: selectedEditor.id,
         deadline: deadline.trim() || undefined,
@@ -807,7 +809,13 @@ export default function CreateProjectScreen() {
             const active = selectedEditor?.id === editor.id;
             const initials = editor.name.split(" ").map((w) => w[0]).join("").toUpperCase();
             return (
-              <TouchableOpacity key={editor.id} activeOpacity={0.75} onPress={() => setSelectedEditor(editor)}
+              <TouchableOpacity key={editor.id} activeOpacity={0.75} onPress={() => {
+                  setSelectedEditor(editor);
+                  if (editor.monthlySalary) {
+                    const suggested = Math.round(editor.monthlySalary / 30 / Math.max(1, editors.length));
+                    setEditorCost(String(suggested));
+                  }
+                }}
                 style={[styles.editorChip, { backgroundColor: active ? `${colors.primary}12` : colors.card, borderColor: active ? colors.primary : colors.border, borderWidth: active ? 2 : 1 }]}>
                 <View style={[styles.editorAvatar, { backgroundColor: active ? `${colors.primary}22` : colors.muted }]}>
                   <Text style={[styles.editorInitials, { color: active ? colors.primary : colors.mutedForeground }]}>{initials}</Text>
@@ -822,6 +830,23 @@ export default function CreateProjectScreen() {
           })}
         </View>
       )}
+
+      {/* ── Editor Cost ──────────────────────────────────────────────────────── */}
+      <Text style={[styles.sectionLabel, { color: "#7c3aed", marginTop: 8 }]}>EDITOR COST (₹)</Text>
+      <View style={[styles.field]}>
+        <View style={[styles.inputWithPrefix, { backgroundColor: "#f5f3ff", borderColor: "#c4b5fd" }]}>
+          <Text style={[styles.inputPrefix, { color: "#7c3aed" }]}>₹</Text>
+          <TextInput style={[styles.inputInner, { color: colors.foreground }]}
+            value={editorCost} onChangeText={setEditorCost}
+            placeholder={selectedEditor?.monthlySalary ? String(Math.round(selectedEditor.monthlySalary / 30 / Math.max(1, editors.length))) : "0"}
+            placeholderTextColor={colors.mutedForeground} keyboardType="numeric" />
+        </View>
+        {selectedEditor?.monthlySalary && editorCost === "" && (
+          <Text style={{ fontSize: 11, color: "#7c3aed", fontFamily: "Inter_400Regular", marginTop: 4 }}>
+            Suggested: ₹{Math.round(selectedEditor.monthlySalary / 30 / Math.max(1, editors.length)).toLocaleString()} (salary ÷ 30 days ÷ {editors.length} editors)
+          </Text>
+        )}
+      </View>
 
       <TouchableOpacity activeOpacity={0.8} onPress={handleSubmit} disabled={submitting}
         style={[styles.submitBtn, { backgroundColor: submitting ? colors.muted : colors.primary }]}>

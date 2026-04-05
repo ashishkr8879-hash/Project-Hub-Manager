@@ -24,12 +24,18 @@ import { useColors } from "@/hooks/useColors";
 import { ChatModal } from "@/components/ChatModal";
 import {
   fetchProjects,
+  fetchEditors,
   fetchProjectReferences,
   addReference,
   deleteReference,
+  updateProject,
+  deleteProject,
   type Project,
+  type Editor,
   type ProjectReference,
+  type ProjectType,
 } from "@/hooks/useApi";
+import { ScrollView } from "react-native";
 
 async function safeOpenUrl(url?: string | null) {
   if (!url || !/^https?:\/\//i.test(url)) {
@@ -55,9 +61,11 @@ export default function ProjectsScreen() {
   const insets = useSafeAreaInsets();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const { openProjectId } = useLocalSearchParams<{ openProjectId?: string }>();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const [search, setSearch] = useState("");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const { data: projects = [], isLoading, refetch } = useQuery({
     queryKey: ["projects"],
@@ -146,6 +154,38 @@ export default function ProjectsScreen() {
           colors={colors}
           insets={insets}
           onClose={() => setSelectedProject(null)}
+          onEdit={() => { setEditingProject(selectedProject); setSelectedProject(null); }}
+          onDelete={() => {
+            Alert.alert("Delete Project", `Delete "${selectedProject.projectName}"? This cannot be undone.`, [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Delete", style: "destructive",
+                onPress: async () => {
+                  try {
+                    await deleteProject(selectedProject.id);
+                    setSelectedProject(null);
+                    await queryClient.invalidateQueries({ queryKey: ["projects"] });
+                    await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+                  } catch { Alert.alert("Error", "Could not delete project"); }
+                },
+              },
+            ]);
+          }}
+        />
+      )}
+
+      {editingProject && (
+        <EditProjectModal
+          project={editingProject}
+          colors={colors}
+          insets={insets}
+          onClose={() => setEditingProject(null)}
+          onSaved={(updated) => {
+            setEditingProject(null);
+            setSelectedProject(updated);
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+          }}
         />
       )}
     </View>
@@ -153,12 +193,14 @@ export default function ProjectsScreen() {
 }
 
 function ProjectDetailModal({
-  project, colors, insets, onClose,
+  project, colors, insets, onClose, onEdit, onDelete,
 }: {
   project: Project;
   colors: ReturnType<typeof useColors>;
   insets: ReturnType<typeof import("react-native-safe-area-context").useSafeAreaInsets>;
   onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const queryClient = useQueryClient();
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -171,8 +213,7 @@ function ProjectDetailModal({
   const [refFile, setRefFile] = useState<{ name: string; size: string; type: string } | null>(null);
   const [addingRef, setAddingRef] = useState(false);
 
-  const isUGC = project.projectType === "ugc" && project.modelCost > 0;
-  const netValue = project.totalValue - (project.modelCost || 0);
+  const netProfit = project.totalValue - (project.modelCost || 0) - (project.editorCost || 0);
 
   const { data: references = [], isLoading: refsLoading, refetch: refetchRefs } = useQuery({
     queryKey: ["project-refs", project.id],
@@ -251,12 +292,18 @@ function ProjectDetailModal({
                 </View>
                 <Text style={[styles.modalClientName, { color: colors.mutedForeground }]}>{project.clientName}</Text>
               </View>
-              <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={{ flexDirection: "row", gap: 6 }}>
                 <TouchableOpacity
                   onPress={() => setChatOpen(true)}
                   style={[styles.closeBtn, { backgroundColor: project.revisionRequested ? "#fef3c7" : `${colors.adminPrimary}15` }]}
                 >
                   <Feather name="message-circle" size={18} color={project.revisionRequested ? "#b45309" : colors.adminPrimary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onEdit} style={[styles.closeBtn, { backgroundColor: `${colors.primary}15` }]}>
+                  <Feather name="edit-2" size={16} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onDelete} style={[styles.closeBtn, { backgroundColor: `${colors.destructive}15` }]}>
+                  <Feather name="trash-2" size={16} color={colors.destructive} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.muted }]}>
                   <Feather name="x" size={18} color={colors.foreground} />
@@ -287,31 +334,30 @@ function ProjectDetailModal({
                   </View>
                 </View>
 
-                {/* Pricing */}
-                {isUGC ? (
-                  <View style={[styles.ugcPricingBox, { backgroundColor: "#fef9c3", borderColor: "#fde047" }]}>
-                    <View style={styles.ugcPricingRow}>
-                      <Text style={[styles.ugcPricingLabel, { color: "#92400e" }]}>Total Value</Text>
-                      <Text style={[styles.ugcPricingValue, { color: colors.foreground }]}>₹{project.totalValue.toLocaleString()}</Text>
-                    </View>
+                {/* Financial Breakdown */}
+                <View style={[styles.ugcPricingBox, { backgroundColor: "#fef9c3", borderColor: "#fde047" }]}>
+                  <View style={styles.ugcPricingRow}>
+                    <Text style={[styles.ugcPricingLabel, { color: "#92400e" }]}>Total Value</Text>
+                    <Text style={[styles.ugcPricingValue, { color: colors.foreground }]}>₹{project.totalValue.toLocaleString()}</Text>
+                  </View>
+                  {(project.modelCost || 0) > 0 && (
                     <View style={styles.ugcPricingRow}>
                       <Text style={[styles.ugcPricingLabel, { color: "#b91c1c" }]}>– Model Cost</Text>
                       <Text style={[styles.ugcPricingValue, { color: "#b91c1c" }]}>–₹{project.modelCost.toLocaleString()}</Text>
                     </View>
-                    <View style={[styles.ugcPricingDivider, { backgroundColor: "#fde047" }]} />
+                  )}
+                  {(project.editorCost || 0) > 0 && (
                     <View style={styles.ugcPricingRow}>
-                      <Text style={[styles.ugcPricingLabel, { color: "#166534", fontFamily: "Inter_700Bold" }]}>Net Editor Payout</Text>
-                      <Text style={[styles.ugcNetValue, { color: "#15803d" }]}>₹{netValue.toLocaleString()}</Text>
+                      <Text style={[styles.ugcPricingLabel, { color: "#7c3aed" }]}>– Editor Cost</Text>
+                      <Text style={[styles.ugcPricingValue, { color: "#7c3aed" }]}>–₹{(project.editorCost || 0).toLocaleString()}</Text>
                     </View>
+                  )}
+                  <View style={[styles.ugcPricingDivider, { backgroundColor: "#fde047" }]} />
+                  <View style={styles.ugcPricingRow}>
+                    <Text style={[styles.ugcPricingLabel, { color: "#166534", fontFamily: "Inter_700Bold" }]}>Company Net Profit</Text>
+                    <Text style={[styles.ugcNetValue, { color: netProfit >= 0 ? "#15803d" : "#b91c1c" }]}>₹{netProfit.toLocaleString()}</Text>
                   </View>
-                ) : (
-                  <View style={[styles.simpleValueBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Feather name="dollar-sign" size={16} color={colors.success} />
-                    <Text style={[styles.simpleValueText, { color: colors.foreground }]}>
-                      Project Value: <Text style={{ color: colors.success, fontFamily: "Inter_700Bold" }}>₹{project.totalValue.toLocaleString()}</Text>
-                    </Text>
-                  </View>
-                )}
+                </View>
 
                 {/* Client contact */}
                 {(project.clientPhone || project.clientEmail) && (
@@ -495,6 +541,307 @@ function ProjectDetailModal({
   );
 }
 
+const PROJECT_TYPES: { value: ProjectType; label: string }[] = [
+  { value: "ugc", label: "UGC" },
+  { value: "ai_video", label: "AI Video" },
+  { value: "editing", label: "Editing" },
+  { value: "branded", label: "Branded" },
+  { value: "corporate", label: "Corporate" },
+  { value: "wedding", label: "Wedding" },
+  { value: "social_media", label: "Social Media" },
+  { value: "graphic_design", label: "Graphic Design" },
+  { value: "ads_setup", label: "Ads Setup" },
+  { value: "website", label: "Website" },
+  { value: "other", label: "Other" },
+];
+
+function EditProjectModal({
+  project, colors, insets, onClose, onSaved,
+}: {
+  project: Project;
+  colors: ReturnType<typeof useColors>;
+  insets: ReturnType<typeof import("react-native-safe-area-context").useSafeAreaInsets>;
+  onClose: () => void;
+  onSaved: (updated: Project) => void;
+}) {
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const [projectName, setProjectName] = useState(project.projectName);
+  const [clientName, setClientName] = useState(project.clientName);
+  const [clientPhone, setClientPhone] = useState(project.clientPhone || "");
+  const [clientEmail, setClientEmail] = useState(project.clientEmail || "");
+  const [totalValue, setTotalValue] = useState(String(project.totalValue));
+  const [modelCost, setModelCost] = useState(String(project.modelCost || 0));
+  const [editorCost, setEditorCost] = useState(String(project.editorCost || 0));
+  const [totalDeliverables, setTotalDeliverables] = useState(String(project.totalDeliverables));
+  const [deadline, setDeadline] = useState(
+    project.deadline ? new Date(project.deadline).toISOString().split("T")[0] : ""
+  );
+  const [notes, setNotes] = useState(project.notes || "");
+  const [script, setScript] = useState(project.script || "");
+  const [selectedEditorId, setSelectedEditorId] = useState(project.editorId);
+  const [projectType, setProjectType] = useState<ProjectType>(project.projectType);
+  const [showEditorPicker, setShowEditorPicker] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const { data: editors = [] } = useQuery({ queryKey: ["editors"], queryFn: fetchEditors });
+
+  const selectedEditor = editors.find((e: Editor) => e.id === selectedEditorId);
+
+  // Auto-suggest editorCost when editor changes
+  function suggestEditorCost(editorId: string) {
+    const editor = editors.find((e: Editor) => e.id === editorId);
+    if (editor?.monthlySalary) {
+      const activeCount = Math.max(1, editors.length);
+      const suggested = Math.round(editor.monthlySalary / 30 / activeCount);
+      setEditorCost(String(suggested));
+    }
+  }
+
+  async function handleSave() {
+    if (!projectName.trim()) { Alert.alert("Required", "Project name is required"); return; }
+    if (!clientName.trim()) { Alert.alert("Required", "Client name is required"); return; }
+    const tv = parseFloat(totalValue);
+    if (isNaN(tv) || tv < 0) { Alert.alert("Invalid", "Enter a valid total value"); return; }
+    setSaving(true);
+    try {
+      const updated = await updateProject(project.id, {
+        projectName: projectName.trim(),
+        clientName: clientName.trim(),
+        clientPhone: clientPhone.trim() || undefined,
+        clientEmail: clientEmail.trim() || undefined,
+        totalValue: tv,
+        modelCost: parseFloat(modelCost) || 0,
+        editorCost: parseFloat(editorCost) || 0,
+        totalDeliverables: parseInt(totalDeliverables) || project.totalDeliverables,
+        editorId: selectedEditorId,
+        deadline: deadline.trim() || undefined,
+        notes: notes.trim() || undefined,
+        script: script.trim() || undefined,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onSaved(updated);
+    } catch (e: unknown) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("Error", e instanceof Error ? e.message : "Failed to update project");
+    } finally { setSaving(false); }
+  }
+
+  const selectedTypeLabel = PROJECT_TYPES.find(t => t.value === projectType)?.label ?? projectType;
+
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalSheet, { backgroundColor: colors.background, paddingBottom: bottomPad }]}>
+          {/* Header */}
+          <View style={[styles.modalTop, { backgroundColor: colors.card }]}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleBlock}>
+                <Text style={[styles.modalProjectName, { color: colors.foreground }]}>Edit Project</Text>
+                <Text style={[styles.modalClientName, { color: colors.mutedForeground }]}>{project.projectName}</Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.muted }]}>
+                  <Feather name="x" size={18} color={colors.foreground} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          <ScrollView contentContainerStyle={[styles.detailContent, { paddingBottom: 24 }]} keyboardShouldPersistTaps="handled">
+            {/* Project Name */}
+            <View style={[styles.editSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.editLabel, { color: colors.mutedForeground }]}>Project Name *</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                value={projectName} onChangeText={setProjectName} placeholder="Project name"
+                placeholderTextColor={colors.mutedForeground}
+              />
+              <Text style={[styles.editLabel, { color: colors.mutedForeground, marginTop: 10 }]}>Client Name *</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                value={clientName} onChangeText={setClientName} placeholder="Client name"
+                placeholderTextColor={colors.mutedForeground}
+              />
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editLabel, { color: colors.mutedForeground }]}>Phone</Text>
+                  <TextInput
+                    style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                    value={clientPhone} onChangeText={setClientPhone} placeholder="+91 ..."
+                    placeholderTextColor={colors.mutedForeground} keyboardType="phone-pad"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editLabel, { color: colors.mutedForeground }]}>Email</Text>
+                  <TextInput
+                    style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                    value={clientEmail} onChangeText={setClientEmail} placeholder="email@..."
+                    placeholderTextColor={colors.mutedForeground} keyboardType="email-address" autoCapitalize="none"
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Project Type */}
+            <View style={[styles.editSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.editLabel, { color: colors.mutedForeground }]}>Project Type</Text>
+              <TouchableOpacity
+                style={[styles.pickerBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                onPress={() => setShowTypePicker((v) => !v)}
+              >
+                <Text style={[styles.pickerBtnText, { color: colors.foreground }]}>{selectedTypeLabel}</Text>
+                <Feather name={showTypePicker ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
+              {showTypePicker && (
+                <View style={[styles.pickerList, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                  {PROJECT_TYPES.map((t) => (
+                    <TouchableOpacity key={t.value} style={styles.pickerItem}
+                      onPress={() => { setProjectType(t.value); setShowTypePicker(false); }}>
+                      <Text style={[styles.pickerItemText, {
+                        color: t.value === projectType ? colors.primary : colors.foreground,
+                        fontFamily: t.value === projectType ? "Inter_700Bold" : "Inter_400Regular",
+                      }]}>{t.label}</Text>
+                      {t.value === projectType && <Feather name="check" size={14} color={colors.primary} />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Financials */}
+            <View style={[styles.editSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.editLabel, { color: colors.mutedForeground }]}>Financial Breakdown (₹)</Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editSubLabel, { color: colors.mutedForeground }]}>Total Value *</Text>
+                  <TextInput
+                    style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                    value={totalValue} onChangeText={setTotalValue} keyboardType="numeric"
+                    placeholder="0" placeholderTextColor={colors.mutedForeground}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editSubLabel, { color: colors.mutedForeground }]}>Model Cost</Text>
+                  <TextInput
+                    style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                    value={modelCost} onChangeText={setModelCost} keyboardType="numeric"
+                    placeholder="0" placeholderTextColor={colors.mutedForeground}
+                  />
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editSubLabel, { color: "#7c3aed" }]}>Editor Cost</Text>
+                  <TextInput
+                    style={[styles.editInput, { backgroundColor: colors.muted, borderColor: "#7c3aed", color: colors.foreground }]}
+                    value={editorCost} onChangeText={setEditorCost} keyboardType="numeric"
+                    placeholder="0" placeholderTextColor={colors.mutedForeground}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.editSubLabel, { color: colors.mutedForeground }]}>Deliverables</Text>
+                  <TextInput
+                    style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                    value={totalDeliverables} onChangeText={setTotalDeliverables} keyboardType="numeric"
+                    placeholder="1" placeholderTextColor={colors.mutedForeground}
+                  />
+                </View>
+              </View>
+              {/* Live preview */}
+              {(parseFloat(totalValue) > 0) && (
+                <View style={{ marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: "#f0fdf4", borderWidth: 1, borderColor: "#bbf7d0" }}>
+                  <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: "#166534" }}>
+                    Net Profit = ₹{Math.max(0, (parseFloat(totalValue) || 0) - (parseFloat(modelCost) || 0) - (parseFloat(editorCost) || 0)).toLocaleString()}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Editor picker */}
+            <View style={[styles.editSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.editLabel, { color: colors.mutedForeground }]}>Assigned Editor</Text>
+              <TouchableOpacity
+                style={[styles.pickerBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                onPress={() => setShowEditorPicker((v) => !v)}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.pickerBtnText, { color: colors.foreground }]}>
+                    {selectedEditor ? selectedEditor.name : "Select editor"}
+                  </Text>
+                  {selectedEditor && (
+                    <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+                      {selectedEditor.specialization}{selectedEditor.monthlySalary ? ` · ₹${selectedEditor.monthlySalary.toLocaleString()}/mo` : ""}
+                    </Text>
+                  )}
+                </View>
+                <Feather name={showEditorPicker ? "chevron-up" : "chevron-down"} size={16} color={colors.mutedForeground} />
+              </TouchableOpacity>
+              {showEditorPicker && (
+                <View style={[styles.pickerList, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                  {editors.map((e: Editor) => (
+                    <TouchableOpacity key={e.id} style={styles.pickerItem}
+                      onPress={() => {
+                        setSelectedEditorId(e.id);
+                        setShowEditorPicker(false);
+                        suggestEditorCost(e.id);
+                      }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.pickerItemText, {
+                          color: e.id === selectedEditorId ? colors.primary : colors.foreground,
+                          fontFamily: e.id === selectedEditorId ? "Inter_700Bold" : "Inter_400Regular",
+                        }]}>{e.name}</Text>
+                        <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+                          {e.specialization}{e.monthlySalary ? ` · ₹${e.monthlySalary.toLocaleString()}/mo` : ""}
+                        </Text>
+                      </View>
+                      {e.id === selectedEditorId && <Feather name="check" size={14} color={colors.primary} />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Deadline + Notes + Script */}
+            <View style={[styles.editSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.editLabel, { color: colors.mutedForeground }]}>Deadline (YYYY-MM-DD)</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                value={deadline} onChangeText={setDeadline} placeholder="2025-06-30"
+                placeholderTextColor={colors.mutedForeground} autoCapitalize="none"
+              />
+              <Text style={[styles.editLabel, { color: colors.mutedForeground, marginTop: 10 }]}>Brief / Notes</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground, minHeight: 80 }]}
+                value={notes} onChangeText={setNotes} placeholder="Brief or notes for the editor..."
+                placeholderTextColor={colors.mutedForeground} multiline
+              />
+              <Text style={[styles.editLabel, { color: colors.mutedForeground, marginTop: 10 }]}>Script</Text>
+              <TextInput
+                style={[styles.editInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground, minHeight: 60 }]}
+                value={script} onChangeText={setScript} placeholder="Script content (optional)"
+                placeholderTextColor={colors.mutedForeground} multiline
+              />
+            </View>
+
+            {/* Save */}
+            <TouchableOpacity
+              style={[styles.refSaveBtn, { backgroundColor: saving ? colors.muted : colors.primary, marginTop: 4 }]}
+              onPress={handleSave} disabled={saving}
+            >
+              {saving
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={styles.refSaveBtnText}>Save Changes</Text>
+              }
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   searchBar: { flexDirection: "row", alignItems: "center", margin: 16, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, gap: 8 },
@@ -562,4 +909,14 @@ const styles = StyleSheet.create({
   filePickName: { fontSize: 13, fontFamily: "Inter_500Medium" },
   filePickSize: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
   filePickPlaceholder: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  // EditProjectModal
+  editSection: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 6 },
+  editLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
+  editSubLabel: { fontSize: 11, fontFamily: "Inter_500Medium", marginBottom: 2 },
+  editInput: { padding: 11, borderRadius: 10, borderWidth: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
+  pickerBtn: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 12, borderRadius: 10, borderWidth: 1 },
+  pickerBtnText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  pickerList: { borderRadius: 10, borderWidth: 1, marginTop: 4, overflow: "hidden" },
+  pickerItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#e2e8f0" },
+  pickerItemText: { fontSize: 14 },
 });

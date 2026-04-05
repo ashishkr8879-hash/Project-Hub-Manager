@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useListPendingVideos, useReviewVideo, useListNotifications, useMarkNotificationsRead } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Film, Bell, Check, X, AlertCircle, CheckCircle2, XCircle, RefreshCw, MessageSquare, Briefcase } from "lucide-react";
+import { useLocation } from "wouter";
+import { Film, Bell, Check, X, CheckCircle2, XCircle, RefreshCw, MessageSquare, Briefcase, ArrowRight } from "lucide-react";
 
 type ReviewStatus = "approved" | "rejected";
 
@@ -96,8 +97,18 @@ function ReviewModal({ video, onClose }: { video: any; onClose: () => void }) {
   );
 }
 
+const NOTIF_ACTIONS: Record<string, { hint: string; dest: "reviews" | "projects" | null }> = {
+  video_submitted:    { hint: "Click to review submission", dest: "reviews" },
+  project_assigned:   { hint: "Click to view projects",    dest: "projects" },
+  message_received:   { hint: "Click to open project",     dest: "projects" },
+  revision_requested: { hint: "Click to view project",     dest: "projects" },
+  video_approved:     { hint: "Click to view projects",    dest: "projects" },
+  video_rejected:     { hint: "Click to view projects",    dest: "projects" },
+};
+
 export default function Videos() {
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
   const [tab, setTab] = useState<"notifications" | "reviews">("notifications");
   const [reviewVideo, setReviewVideo] = useState<any | null>(null);
   const [markingRead, setMarkingRead] = useState(false);
@@ -112,10 +123,24 @@ export default function Videos() {
     setMarkingRead(true);
     const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
     if (unreadIds.length > 0) {
-      await markReadMut.mutateAsync({ data: { ids: unreadIds } });
+      await markReadMut.mutateAsync({ data: { userId: "admin", notifIds: unreadIds } as any });
       refetchNotifs();
     }
     setMarkingRead(false);
+  }
+
+  async function handleNotifClick(notif: any) {
+    // Mark as read
+    if (!notif.read) {
+      await markReadMut.mutateAsync({ data: { userId: "admin", notifIds: [notif.id] } as any });
+      refetchNotifs();
+    }
+    const action = NOTIF_ACTIONS[notif.type];
+    if (action?.dest === "reviews") {
+      setTab("reviews");
+    } else if (action?.dest === "projects") {
+      navigate("/projects");
+    }
   }
 
   return (
@@ -173,18 +198,37 @@ export default function Videos() {
               {notifications.map((notif) => {
                 const Icon = NOTIF_ICONS[notif.type] ?? Bell;
                 const colorClass = NOTIF_COLORS[notif.type] ?? "text-zinc-400";
+                const action = NOTIF_ACTIONS[notif.type];
                 return (
-                  <div key={notif.id} className={`flex items-start gap-4 p-4 bg-zinc-900 border rounded-2xl transition-colors ${notif.read ? "border-zinc-800/40 opacity-70" : "border-zinc-800/60"}`}>
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${notif.read ? "bg-zinc-800" : "bg-zinc-800"}`}>
-                      <Icon className={`w-4.5 h-4.5 ${colorClass}`} />
+                  <button
+                    key={notif.id}
+                    onClick={() => handleNotifClick(notif)}
+                    className={`w-full flex items-start gap-4 p-4 bg-zinc-900 border rounded-2xl text-left transition-all group hover:scale-[1.004] active:scale-[0.998] ${
+                      notif.read
+                        ? "border-zinc-800/40 opacity-70 hover:opacity-100 hover:border-zinc-800"
+                        : "border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-800/60"
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-zinc-800 transition-transform group-hover:scale-110">
+                      <Icon className={`w-4 h-4 ${colorClass}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-semibold ${notif.read ? "text-zinc-300" : "text-white"}`}>{notif.title}</p>
                       <p className="text-xs text-zinc-500 mt-0.5">{notif.message}</p>
-                      <p className="text-[10px] text-zinc-600 mt-1">{timeAgo(notif.createdAt)}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-[10px] text-zinc-600">{timeAgo(notif.createdAt)}</p>
+                        {action && (
+                          <span className="text-[10px] text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                            · {action.hint} <ArrowRight className="w-2.5 h-2.5" />
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {!notif.read && <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />}
-                  </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {!notif.read && <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5" />}
+                      <ArrowRight className="w-3.5 h-3.5 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </button>
                 );
               })}
             </div>

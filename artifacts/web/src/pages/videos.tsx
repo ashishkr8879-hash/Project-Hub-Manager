@@ -6,21 +6,13 @@ import { Film, Bell, Check, X, CheckCircle2, XCircle, RefreshCw, MessageSquare, 
 
 type ReviewStatus = "approved" | "rejected";
 
-const NOTIF_ICONS: Record<string, React.ComponentType<any>> = {
-  video_submitted: Film,
-  video_approved: CheckCircle2,
-  video_rejected: XCircle,
-  project_assigned: Briefcase,
-  message_received: MessageSquare,
-  revision_requested: RefreshCw,
-};
-const NOTIF_COLORS: Record<string, string> = {
-  video_submitted: "text-blue-400",
-  video_approved: "text-emerald-400",
-  video_rejected: "text-red-400",
-  project_assigned: "text-violet-400",
-  message_received: "text-amber-400",
-  revision_requested: "text-orange-400",
+const NOTIF_STYLE: Record<string, { icon: React.ComponentType<any>; color: string; bg: string }> = {
+  video_submitted:    { icon: Film,          color: "#2563eb", bg: "#dbeafe" },
+  video_approved:     { icon: CheckCircle2,  color: "#16a34a", bg: "#dcfce7" },
+  video_rejected:     { icon: XCircle,       color: "#dc2626", bg: "#fee2e2" },
+  project_assigned:   { icon: Briefcase,     color: "#7c3aed", bg: "#ede9fe" },
+  message_received:   { icon: MessageSquare, color: "#d97706", bg: "#fef3c7" },
+  revision_requested: { icon: RefreshCw,     color: "#ea580c", bg: "#ffedd5" },
 };
 
 function timeAgo(d: string) {
@@ -196,21 +188,27 @@ export default function Videos() {
           ) : (
             <div className="space-y-2">
               {notifications.map((notif) => {
-                const Icon = NOTIF_ICONS[notif.type] ?? Bell;
-                const colorClass = NOTIF_COLORS[notif.type] ?? "text-zinc-400";
+                const style = NOTIF_STYLE[notif.type] ?? { icon: Bell, color: "#6b7280", bg: "#f3f4f6" };
+                const Icon = style.icon;
                 const action = NOTIF_ACTIONS[notif.type];
                 return (
                   <button
                     key={notif.id}
                     onClick={() => handleNotifClick(notif)}
-                    className={`w-full flex items-start gap-4 p-4 bg-zinc-900 border rounded-2xl text-left transition-all group hover:scale-[1.004] active:scale-[0.998] ${
+                    className={`w-full flex items-start gap-4 p-4 bg-zinc-900 border rounded-2xl text-left transition-all duration-150 group
+                      hover:shadow-lg active:shadow-none active:opacity-80 ${
                       notif.read
-                        ? "border-zinc-800/40 opacity-70 hover:opacity-100 hover:border-zinc-800"
-                        : "border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-800/60"
+                        ? "border-zinc-800/40 opacity-70 hover:opacity-100 hover:border-zinc-800 hover:bg-zinc-900"
+                        : "border-zinc-800/60 hover:border-zinc-700 hover:bg-zinc-800/80"
                     }`}
                   >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-zinc-800 transition-transform group-hover:scale-110">
-                      <Icon className={`w-4 h-4 ${colorClass}`} />
+                    {/* Icon — data-no-invert keeps colors correct in light mode */}
+                    <div
+                      data-no-invert
+                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-150 group-hover:scale-110 group-active:scale-95"
+                      style={{ backgroundColor: style.bg }}
+                    >
+                      <Icon className="w-4 h-4" style={{ color: style.color }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-semibold ${notif.read ? "text-zinc-300" : "text-white"}`}>{notif.title}</p>
@@ -224,9 +222,15 @@ export default function Videos() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {!notif.read && <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5" />}
-                      <ArrowRight className="w-3.5 h-3.5 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex items-center gap-2 flex-shrink-0 self-start pt-0.5">
+                      {!notif.read && (
+                        <div
+                          data-no-invert
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: style.color }}
+                        />
+                      )}
+                      <ArrowRight className="w-3.5 h-3.5 text-zinc-600 opacity-0 group-hover:opacity-60 transition-opacity" />
                     </div>
                   </button>
                 );

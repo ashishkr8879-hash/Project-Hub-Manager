@@ -3,8 +3,6 @@ import { useGetEditorProfile, useListNotifications } from "@workspace/api-client
 import { Link } from "wouter";
 import { Briefcase, CheckCircle2, Activity, Edit2, Bell, Clock, ChevronRight, Video } from "lucide-react";
 
-const fmt = (n: number) => "₹" + n.toLocaleString("en-IN");
-
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   pending:     { label: "Pending",     className: "bg-zinc-700/50 text-zinc-300" },
   in_progress: { label: "In Progress", className: "bg-blue-500/15 text-blue-400" },
@@ -58,16 +56,8 @@ export default function EditorDashboard() {
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Welcome */}
       <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Namaste, {profile?.name ?? user?.name} 👋</h1>
-            <p className="text-sm text-zinc-400 mt-1">{spec} · {profile?.location ?? ""}</p>
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-zinc-500 mb-1">Monthly Salary</div>
-            <div className="text-xl font-bold text-emerald-400">{fmt(profile?.monthlySalary ?? 0)}</div>
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-white">Namaste, {profile?.name ?? user?.name} 👋</h1>
+        <p className="text-sm text-zinc-400 mt-1">{spec}{profile?.location ? ` · ${profile.location}` : ""}</p>
       </div>
 
       {/* Stats */}

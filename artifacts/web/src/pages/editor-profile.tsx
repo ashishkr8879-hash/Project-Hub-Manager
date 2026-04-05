@@ -2,8 +2,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useGetEditorProfile } from "@workspace/api-client-react";
 import { Mail, Phone, MapPin, CreditCard, Calendar, Briefcase, CheckCircle2, Activity, Video, Edit2 } from "lucide-react";
 
-const fmt = (n: number) => "₹" + n.toLocaleString("en-IN");
-
 const SPEC_COLORS: Record<string, string> = {
   "Video Editor": "#7c3aed", "Graphic Designer": "#ec4899",
   "Social Media Manager": "#0ea5e9", "Website Development": "#10b981", "Ads Setup": "#f97316",
@@ -55,7 +53,7 @@ export default function EditorProfile() {
           <div>
             <h1 className="text-xl font-bold text-white">{profile?.name ?? user?.name}</h1>
             <p className="text-sm font-semibold mt-0.5" style={{ color: specColor }}>{spec}</p>
-            <p className="text-xs text-zinc-500 mt-1">Monthly Salary: <span className="text-emerald-400 font-bold">{fmt(profile?.monthlySalary ?? 0)}</span></p>
+            {profile?.location && <p className="text-xs text-zinc-500 mt-1">{profile.location}</p>}
           </div>
         </div>
       </div>

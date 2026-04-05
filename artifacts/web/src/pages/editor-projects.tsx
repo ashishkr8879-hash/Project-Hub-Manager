@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useListEditorProjects, useSubmitVideo, useListMessages, useSendMessage, useUpdateProjectStatus } from "@workspace/api-client-react";
 import {
-  Clock, CheckCircle2, ChevronDown, ChevronUp, Upload, MessageSquare, Send, Video, AlertCircle, X,
+  Clock, CheckCircle2, ChevronDown, ChevronUp, Upload, MessageSquare, Send, AlertCircle, X, FileImage, FileVideo, FileText, Globe, BarChart2,
 } from "lucide-react";
 
 const STATUS_STYLES: Record<string, { label: string; bg: string; text: string }> = {
-  pending:     { label: "Pending",     bg: "bg-zinc-700/50",      text: "text-zinc-300" },
-  in_progress: { label: "In Progress", bg: "bg-blue-500/15",      text: "text-blue-400" },
-  completed:   { label: "Completed",   bg: "bg-emerald-500/15",   text: "text-emerald-400" },
+  pending:     { label: "Pending",     bg: "bg-zinc-700/50",    text: "text-zinc-300" },
+  in_progress: { label: "In Progress", bg: "bg-blue-500/15",    text: "text-blue-400" },
+  completed:   { label: "Completed",   bg: "bg-emerald-500/15", text: "text-emerald-400" },
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -17,7 +17,14 @@ const TYPE_LABELS: Record<string, string> = {
   graphic_design: "Graphic Design", ads_setup: "Ads Setup", website: "Website", other: "Other",
 };
 
-const fmt = (n: number) => "₹" + n.toLocaleString("en-IN");
+// What each specialization submits
+const SPEC_UPLOAD: Record<string, { label: string; hint: string; icon: React.ElementType; color: string }> = {
+  "Video Editor":          { label: "Submit Video",   hint: "e.g. project_final_v2.mp4",    icon: FileVideo,  color: "#7c3aed" },
+  "Graphic Designer":      { label: "Submit Design",  hint: "e.g. logo_final.jpg / flyer.pdf", icon: FileImage,  color: "#ec4899" },
+  "Social Media Manager":  { label: "Submit Content", hint: "e.g. week1_posts.pdf / reel.mp4", icon: FileText,   color: "#0ea5e9" },
+  "Website Development":   { label: "Submit Work",    hint: "e.g. website_build.zip / link",    icon: Globe,      color: "#10b981" },
+  "Ads Setup":             { label: "Submit Report",  hint: "e.g. campaign_report.pdf",          icon: BarChart2,  color: "#f97316" },
+};
 
 function daysLeft(deadline: string) {
   const d = Math.ceil((new Date(deadline).getTime() - Date.now()) / 86400000);
@@ -35,15 +42,23 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function VideoSubmitModal({ projectId, editorId, onClose, onDone }: { projectId: string; editorId: string; onClose: () => void; onDone: () => void }) {
+function SubmitWorkModal({
+  projectId, editorId, specialization, onClose, onDone,
+}: { projectId: string; editorId: string; specialization: string; onClose: () => void; onDone: () => void }) {
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState("");
   const [deliverableIndex, setDeliverableIndex] = useState("1");
   const submitMut = useSubmitVideo();
 
+  const cfg = SPEC_UPLOAD[specialization] ?? SPEC_UPLOAD["Video Editor"];
+  const Icon = cfg.icon;
+
   async function submit() {
     if (!fileName.trim()) return;
-    await submitMut.mutateAsync({ projectId, data: { editorId, fileName: fileName.trim(), fileSize: fileSize.trim() || "Unknown", deliverableIndex: +deliverableIndex || 1 } });
+    await submitMut.mutateAsync({
+      projectId,
+      data: { editorId, fileName: fileName.trim(), fileSize: fileSize.trim() || "Unknown", deliverableIndex: +deliverableIndex || 1 },
+    });
     onDone();
   }
 
@@ -52,25 +67,49 @@ function VideoSubmitModal({ projectId, editorId, onClose, onDone }: { projectId:
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-sm z-10 shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-zinc-800/60">
-          <h2 className="text-base font-bold text-white flex items-center gap-2"><Upload className="w-4 h-4 text-violet-400" />Submit Video</h2>
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <Icon className="w-4 h-4" style={{ color: cfg.color }} />{cfg.label}
+          </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-5 space-y-3">
           <div>
             <label className="text-xs text-zinc-500 block mb-1">File Name *</label>
-            <input value={fileName} onChange={(e) => setFileName(e.target.value)} placeholder="e.g. brand_video_v2.mp4" className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white placeholder-zinc-600" />
+            <input
+              value={fileName}
+              onChange={(e) => setFileName(e.target.value)}
+              placeholder={cfg.hint}
+              className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white placeholder-zinc-600"
+            />
           </div>
           <div>
             <label className="text-xs text-zinc-500 block mb-1">File Size</label>
-            <input value={fileSize} onChange={(e) => setFileSize(e.target.value)} placeholder="e.g. 250 MB" className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white placeholder-zinc-600" />
+            <input
+              value={fileSize}
+              onChange={(e) => setFileSize(e.target.value)}
+              placeholder="e.g. 50 MB"
+              className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white placeholder-zinc-600"
+            />
           </div>
           <div>
             <label className="text-xs text-zinc-500 block mb-1">Deliverable #</label>
-            <input type="number" min="1" value={deliverableIndex} onChange={(e) => setDeliverableIndex(e.target.value)} className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white" />
+            <input
+              type="number" min="1"
+              value={deliverableIndex}
+              onChange={(e) => setDeliverableIndex(e.target.value)}
+              className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white"
+            />
           </div>
           <div className="flex gap-2 pt-1">
-            <button onClick={submit} disabled={!fileName.trim() || submitMut.isPending} className="flex-1 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
-              {submitMut.isPending ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting...</> : <><Upload className="w-4 h-4" />Submit</>}
+            <button
+              onClick={submit}
+              disabled={!fileName.trim() || submitMut.isPending}
+              className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              style={{ backgroundColor: cfg.color }}
+            >
+              {submitMut.isPending
+                ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting...</>
+                : <><Upload className="w-4 h-4" />{cfg.label}</>}
             </button>
             <button onClick={onClose} className="px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 text-sm hover:bg-zinc-700">Cancel</button>
           </div>
@@ -133,10 +172,11 @@ export default function EditorProjects() {
   const { user } = useAuth();
   const editorId = (user as any)?.editorId ?? user?.id ?? "";
   const editorName = user?.name ?? "Team Member";
+  const specialization = (user as any)?.specialization ?? "Video Editor";
 
   const { data: projects = [], refetch, isLoading } = useListEditorProjects(editorId, { query: { refetchInterval: 30000 } });
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [videoModal, setVideoModal] = useState<string | null>(null);
+  const [submitModal, setSubmitModal] = useState<string | null>(null);
   const [tab, setTab] = useState<"all" | "active" | "completed">("all");
   const updateStatusMut = useUpdateProjectStatus();
 
@@ -151,9 +191,11 @@ export default function EditorProjects() {
     refetch();
   }
 
+  const cfg = SPEC_UPLOAD[specialization] ?? SPEC_UPLOAD["Video Editor"];
+
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: cfg.color + "80", borderTopColor: "transparent" }} />
     </div>
   );
 
@@ -163,14 +205,21 @@ export default function EditorProjects() {
         <h1 className="text-xl font-bold text-white">My Projects</h1>
         <div className="flex gap-1.5">
           {(["all", "active", "completed"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-colors ${tab === t ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}>{t}</button>
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-colors ${tab === t ? "text-white" : "bg-zinc-800 text-zinc-400 hover:text-white"}`}
+              style={tab === t ? { backgroundColor: cfg.color } : {}}
+            >
+              {t}
+            </button>
           ))}
         </div>
       </div>
 
       {filtered.length === 0 ? (
         <div className="text-center py-20 text-zinc-500">
-          <Video className="w-8 h-8 mx-auto mb-2 opacity-40" />
+          <cfg.icon className="w-8 h-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm">No {tab !== "all" ? tab : ""} projects found</p>
         </div>
       ) : (
@@ -215,41 +264,32 @@ export default function EditorProjects() {
                     <span>{Math.round(progress)}%</span>
                   </div>
                   <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                    <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundColor: cfg.color }} />
                   </div>
                 </div>
 
                 {/* Expanded */}
                 {isOpen && (
                   <div className="px-5 pb-5 border-t border-zinc-800/60 pt-4 space-y-3">
-                    {/* Info grid */}
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-zinc-800/50 rounded-xl p-3">
-                        <p className="text-zinc-500 mb-0.5">Your Earning</p>
-                        <p className="text-white font-bold">{fmt(p.editorCost)}</p>
-                      </div>
-                      <div className="bg-zinc-800/50 rounded-xl p-3">
-                        <p className="text-zinc-500 mb-0.5">Total Value</p>
-                        <p className="text-white font-bold">{fmt(p.totalValue)}</p>
-                      </div>
-                    </div>
-
                     {/* Notes */}
                     {p.notes && (
                       <div className="bg-amber-500/8 border border-amber-500/20 rounded-xl p-3">
-                        <p className="text-[10px] font-bold text-amber-400 mb-1">Admin Notes</p>
+                        <p className="text-[10px] font-bold text-amber-400 mb-1">Admin Notes / Brief</p>
                         <p className="text-xs text-zinc-300 leading-relaxed">{p.notes}</p>
                       </div>
                     )}
 
                     {/* Actions */}
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => setVideoModal(p.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-xl transition-colors"
-                      >
-                        <Upload className="w-3.5 h-3.5" />Submit Video
-                      </button>
+                      {p.status !== "completed" && (
+                        <button
+                          onClick={() => setSubmitModal(p.id)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-white text-xs font-semibold rounded-xl transition-colors"
+                          style={{ backgroundColor: cfg.color }}
+                        >
+                          <Upload className="w-3.5 h-3.5" />{cfg.label}
+                        </button>
+                      )}
                       {p.status !== "completed" && (
                         <button
                           onClick={() => markComplete(p.id)}
@@ -258,6 +298,11 @@ export default function EditorProjects() {
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />Mark Done
                         </button>
+                      )}
+                      {p.status === "completed" && (
+                        <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold">
+                          <CheckCircle2 className="w-4 h-4" />Project Completed
+                        </div>
                       )}
                     </div>
 
@@ -271,12 +316,13 @@ export default function EditorProjects() {
         </div>
       )}
 
-      {videoModal && (
-        <VideoSubmitModal
-          projectId={videoModal}
+      {submitModal && (
+        <SubmitWorkModal
+          projectId={submitModal}
           editorId={editorId}
-          onClose={() => setVideoModal(null)}
-          onDone={() => { setVideoModal(null); refetch(); }}
+          specialization={specialization}
+          onClose={() => setSubmitModal(null)}
+          onDone={() => { setSubmitModal(null); refetch(); }}
         />
       )}
     </div>

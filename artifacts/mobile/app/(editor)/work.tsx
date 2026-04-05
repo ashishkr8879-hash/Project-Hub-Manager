@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
@@ -666,13 +667,26 @@ function ProjectDetailModal({
                     <Feather name="align-left" size={14} color={theme.primary} />
                     <Text style={[styles.dtSectionTitle, { color: colors.foreground }]}>Brief / Notes</Text>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => Share.share({ title: `Brief – ${project.projectName}`, message: project.notes! }).catch(() => {})}
-                    style={[styles.dtShareBtn, { backgroundColor: `${theme.primary}15` }]}
-                  >
-                    <Feather name="share-2" size={13} color={theme.primary} />
-                    <Text style={[styles.dtShareBtnText, { color: theme.primary }]}>Share</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={async () => {
+                        await Clipboard.setStringAsync(project.notes!);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        Alert.alert("Copied!", "Brief copied to clipboard.");
+                      }}
+                      style={[styles.dtShareBtn, { backgroundColor: `${theme.primary}15` }]}
+                    >
+                      <Feather name="copy" size={13} color={theme.primary} />
+                      <Text style={[styles.dtShareBtnText, { color: theme.primary }]}>Copy</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => Share.share({ title: `Brief – ${project.projectName}`, message: project.notes! }).catch(() => {})}
+                      style={[styles.dtShareBtn, { backgroundColor: `${theme.primary}15` }]}
+                    >
+                      <Feather name="share-2" size={13} color={theme.primary} />
+                      <Text style={[styles.dtShareBtnText, { color: theme.primary }]}>Share</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <ScrollView style={{ maxHeight: 160 }} showsVerticalScrollIndicator={false}>
                   <Text style={[styles.dtNote, { color: colors.foreground, backgroundColor: colors.muted }]}>
@@ -690,13 +704,26 @@ function ProjectDetailModal({
                     <Feather name="file-text" size={14} color={theme.primary} />
                     <Text style={[styles.dtSectionTitle, { color: colors.foreground }]}>Script</Text>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => Share.share({ title: `Script – ${project.projectName}`, message: project.script! }).catch(() => {})}
-                    style={[styles.dtShareBtn, { backgroundColor: `${theme.primary}15` }]}
-                  >
-                    <Feather name="share-2" size={13} color={theme.primary} />
-                    <Text style={[styles.dtShareBtnText, { color: theme.primary }]}>Share / Save</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={async () => {
+                        await Clipboard.setStringAsync(project.script!);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        Alert.alert("Copied!", "Script copied to clipboard.");
+                      }}
+                      style={[styles.dtShareBtn, { backgroundColor: `${theme.primary}15` }]}
+                    >
+                      <Feather name="copy" size={13} color={theme.primary} />
+                      <Text style={[styles.dtShareBtnText, { color: theme.primary }]}>Copy</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => Share.share({ title: `Script – ${project.projectName}`, message: project.script! }).catch(() => {})}
+                      style={[styles.dtShareBtn, { backgroundColor: `${theme.primary}15` }]}
+                    >
+                      <Feather name="share-2" size={13} color={theme.primary} />
+                      <Text style={[styles.dtShareBtnText, { color: theme.primary }]}>Share</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
                   <Text style={[styles.dtNote, { color: colors.foreground, backgroundColor: colors.muted }]}>
@@ -727,19 +754,29 @@ function ProjectDetailModal({
               ) : (
                 references.map((ref) => (
                   <View key={ref.id} style={[styles.dtRefCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                    {/* Icon */}
                     <View style={[styles.dtRefIcon, {
                       backgroundColor: ref.url ? `${colors.primary}18` : `${theme.primary}18`,
                     }]}>
                       <Feather name={ref.url ? "link" : "file"} size={14}
                         color={ref.url ? colors.primary : theme.primary} />
                     </View>
-                    <View style={{ flex: 1 }}>
+
+                    {/* Content */}
+                    <View style={{ flex: 1, gap: 3 }}>
                       <Text style={[styles.dtRefTitle, { color: colors.foreground }]}>{ref.title}</Text>
+
+                      {/* File attachment */}
                       {ref.fileName && (
-                        <Text style={[styles.dtRefSub, { color: theme.primary }]} numberOfLines={1}>
-                          📎 {ref.fileName}
-                        </Text>
+                        <View style={[styles.dtFileChip, { backgroundColor: `${theme.primary}12` }]}>
+                          <Feather name="paperclip" size={11} color={theme.primary} />
+                          <Text style={[styles.dtFileChipText, { color: theme.primary }]} numberOfLines={1}>
+                            {ref.fileName}
+                          </Text>
+                        </View>
                       )}
+
+                      {/* URL link */}
                       {ref.url && (
                         <TouchableOpacity onPress={() => Linking.openURL(ref.url!).catch(() => {})}>
                           <Text style={[styles.dtRefSub, { color: colors.primary }]} numberOfLines={1}>
@@ -747,17 +784,63 @@ function ProjectDetailModal({
                           </Text>
                         </TouchableOpacity>
                       )}
+
                       {ref.note ? <Text style={[styles.dtRefNote, { color: colors.mutedForeground }]}>{ref.note}</Text> : null}
+
+                      {/* Action row */}
+                      <View style={styles.dtRefActions}>
+                        {ref.fileName && (
+                          <>
+                            <TouchableOpacity
+                              onPress={async () => {
+                                await Clipboard.setStringAsync(ref.fileName!);
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                Alert.alert("Copied!", `"${ref.fileName}" filename copied to clipboard.`);
+                              }}
+                              style={[styles.dtRefActionBtn, { backgroundColor: `${theme.primary}14` }]}
+                            >
+                              <Feather name="copy" size={12} color={theme.primary} />
+                              <Text style={[styles.dtRefActionText, { color: theme.primary }]}>Copy name</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() =>
+                                Share.share({
+                                  title: ref.title,
+                                  message: `📎 File: ${ref.fileName}${ref.note ? `\nNote: ${ref.note}` : ""}\n\nFrom project: ${project.projectName}`,
+                                }).catch(() => {})
+                              }
+                              style={[styles.dtRefActionBtn, { backgroundColor: `${theme.primary}14` }]}
+                            >
+                              <Feather name="share-2" size={12} color={theme.primary} />
+                              <Text style={[styles.dtRefActionText, { color: theme.primary }]}>Share info</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                        {ref.url && (
+                          <>
+                            <TouchableOpacity
+                              onPress={async () => {
+                                await Clipboard.setStringAsync(ref.url!);
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                Alert.alert("Copied!", "Link copied to clipboard.");
+                              }}
+                              style={[styles.dtRefActionBtn, { backgroundColor: `${colors.primary}14` }]}
+                            >
+                              <Feather name="copy" size={12} color={colors.primary} />
+                              <Text style={[styles.dtRefActionText, { color: colors.primary }]}>Copy link</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => Linking.openURL(ref.url!).catch(() =>
+                                Alert.alert("Cannot open", "Unable to open this link."))}
+                              style={[styles.dtRefActionBtn, { backgroundColor: `${colors.primary}14` }]}
+                            >
+                              <Feather name="external-link" size={12} color={colors.primary} />
+                              <Text style={[styles.dtRefActionText, { color: colors.primary }]}>Open link</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                      </View>
                     </View>
-                    {ref.url && (
-                      <TouchableOpacity
-                        onPress={() => Linking.openURL(ref.url!).catch(() =>
-                          Alert.alert("Cannot open", "Unable to open this link."))}
-                        style={[styles.dtRefOpenBtn, { backgroundColor: `${colors.primary}15` }]}
-                      >
-                        <Feather name="external-link" size={14} color={colors.primary} />
-                      </TouchableOpacity>
-                    )}
                   </View>
                 ))
               )}
@@ -1190,6 +1273,11 @@ const styles = StyleSheet.create({
   dtRefSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   dtRefNote: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 3 },
   dtRefOpenBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  dtFileChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: "flex-start", maxWidth: "100%" },
+  dtFileChipText: { fontSize: 11, fontFamily: "Inter_500Medium", flexShrink: 1 },
+  dtRefActions: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
+  dtRefActionBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8 },
+  dtRefActionText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   dtShareBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   dtShareBtnText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   dtRevisionBanner: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },

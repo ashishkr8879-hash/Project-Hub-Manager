@@ -1,22 +1,29 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Divayshakati Project Manager API
 servers:
   - url: /api
     description: Base API path
 tags:
-  - name: health
-    description: Health operations
+  - name: auth
+  - name: admin
+  - name: clients
+  - name: editors
+  - name: projects
+  - name: videos
+  - name: notifications
+  - name: calendar
+  - name: references
+  - name: messages
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +31,662 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+
+  /admin/profile:
+    get:
+      operationId: getAdminProfile
+      tags: [admin]
+      summary: Get admin profile with stats
+      responses:
+        "200":
+          description: Admin profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProfile"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [admin]
+      summary: Dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: List all clients
+      responses:
+        "200":
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Create a new client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClientBody"
+      responses:
+        "201":
+          description: Created client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /clients/{clientId}:
+    delete:
+      operationId: deleteClient
+      tags: [clients]
+      summary: Delete a client
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /clients/{clientId}/projects:
+    get:
+      operationId: getClientProjects
+      tags: [clients]
+      summary: Get client with their projects
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Client projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientProjectsResponse"
+
+  /editors:
+    get:
+      operationId: listEditors
+      tags: [editors]
+      summary: List all editors
+      responses:
+        "200":
+          description: List of editors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Editor"
+    post:
+      operationId: createEditor
+      tags: [editors]
+      summary: Create a new editor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEditorBody"
+      responses:
+        "201":
+          description: Created editor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Editor"
+
+  /editors/{editorId}:
+    patch:
+      operationId: updateEditor
+      tags: [editors]
+      summary: Update an editor
+      parameters:
+        - name: editorId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEditorBody"
+      responses:
+        "200":
+          description: Updated editor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Editor"
+    delete:
+      operationId: deleteEditor
+      tags: [editors]
+      summary: Delete an editor
+      parameters:
+        - name: editorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /editors/{editorId}/full:
+    get:
+      operationId: getEditorFull
+      tags: [editors]
+      summary: Get full editor info including credentials
+      parameters:
+        - name: editorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full editor info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditorFull"
+
+  /editors/{editorId}/profile:
+    get:
+      operationId: getEditorProfile
+      tags: [editors]
+      summary: Get editor profile with analytics
+      parameters:
+        - name: editorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Editor profile with stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EditorProfile"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a new project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectBody"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/editor/{editorId}:
+    get:
+      operationId: listEditorProjects
+      tags: [projects]
+      summary: List projects assigned to an editor
+      parameters:
+        - name: editorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Editor's projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+
+  /projects/calendar:
+    get:
+      operationId: getCalendar
+      tags: [calendar]
+      summary: Get calendar data grouped by day
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+          description: "Month filter e.g. 2025-04"
+        - name: editorId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Calendar days
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/CalendarDay"
+
+  /projects/{projectId}:
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project (full edit including editor reassignment)
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /projects/{projectId}/status:
+    patch:
+      operationId: updateProjectStatus
+      tags: [projects]
+      summary: Update project status
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStatusBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{projectId}/revision:
+    patch:
+      operationId: setProjectRevision
+      tags: [projects]
+      summary: Toggle revision/customisation flag
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevisionBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{projectId}/payment:
+    patch:
+      operationId: updateProjectPayment
+      tags: [projects]
+      summary: Update payment received
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{projectId}/references:
+    get:
+      operationId: listProjectReferences
+      tags: [references]
+      summary: List project references
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: References
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectReference"
+    post:
+      operationId: addProjectReference
+      tags: [references]
+      summary: Add a project reference
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddReferenceBody"
+      responses:
+        "201":
+          description: Created reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectReference"
+
+  /references/{referenceId}:
+    delete:
+      operationId: deleteReference
+      tags: [references]
+      summary: Delete a reference
+      parameters:
+        - name: referenceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /projects/{projectId}/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List project messages
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageBody"
+      responses:
+        "201":
+          description: Sent message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /projects/{projectId}/videos:
+    post:
+      operationId: submitVideo
+      tags: [videos]
+      summary: Submit a video for review
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitVideoBody"
+      responses:
+        "201":
+          description: Submitted video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoSubmission"
+
+  /videos/pending:
+    get:
+      operationId: listPendingVideos
+      tags: [videos]
+      summary: List pending video reviews
+      responses:
+        "200":
+          description: Pending videos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VideoSubmission"
+
+  /videos/editor/{editorId}:
+    get:
+      operationId: listEditorVideos
+      tags: [videos]
+      summary: List editor's video submissions
+      parameters:
+        - name: editorId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Editor's videos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VideoSubmission"
+
+  /videos/{videoId}/review:
+    patch:
+      operationId: reviewVideo
+      tags: [videos]
+      summary: Approve or reject a video
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewVideoBody"
+      responses:
+        "200":
+          description: Reviewed video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoSubmission"
+
+  /notifications/{userId}:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppNotification"
+
+  /notifications/mark-read:
+    post:
+      operationId: markNotificationsRead
+      tags: [notifications]
+      summary: Mark notifications as read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkReadBody"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +694,624 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
+
+    LoginBody:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [admin, editor]
+        editorId:
+          type: string
+        specialization:
+          type: string
+      required: [id, name, role]
+
+    Client:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        businessType:
+          type: string
+        city:
+          type: string
+        createdAt:
+          type: string
+      required: [id, name, phone, email, businessType, city, createdAt]
+
+    CreateClientBody:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        businessType:
+          type: string
+        city:
+          type: string
+      required: [name, phone, email, businessType, city]
+
+    ClientProjectsResponse:
+      type: object
+      properties:
+        client:
+          $ref: "#/components/schemas/Client"
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        totalValue:
+          type: number
+      required: [client, projects, totalValue]
+
+    Editor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        phone:
+          type: string
+        specialization:
+          type: string
+        joinedAt:
+          type: string
+        bankAccount:
+          type: string
+        location:
+          type: string
+        monthlySalary:
+          type: number
+      required: [id, name, email, phone, specialization, joinedAt]
+
+    EditorFull:
+      allOf:
+        - $ref: "#/components/schemas/Editor"
+        - type: object
+          properties:
+            password:
+              type: string
+          required: [password]
+
+    EditorProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        specialization:
+          type: string
+        joinedAt:
+          type: string
+        monthlySalary:
+          type: number
+        stats:
+          type: object
+          properties:
+            totalProjects:
+              type: number
+            completedProjects:
+              type: number
+            inProgressProjects:
+              type: number
+            pendingProjects:
+              type: number
+            customisationProjects:
+              type: number
+            totalVideosUploaded:
+              type: number
+            approvedVideos:
+              type: number
+            rejectedVideos:
+              type: number
+            pendingReviewVideos:
+              type: number
+            totalRevenue:
+              type: number
+            companyProfit:
+              type: number
+            totalEarnings:
+              type: number
+          required: [totalProjects, completedProjects, inProgressProjects, pendingProjects, customisationProjects, totalVideosUploaded, approvedVideos, rejectedVideos, pendingReviewVideos, totalRevenue, companyProfit, totalEarnings]
+        recentProjects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        allProjects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+      required: [id, name, email, phone, specialization, joinedAt, stats, recentProjects, allProjects]
+
+    CreateEditorBody:
+      type: object
+      properties:
+        name:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        specialization:
+          type: string
+        location:
+          type: string
+        bankAccount:
+          type: string
+        monthlySalary:
+          type: number
+      required: [name, username, password, phone, specialization]
+
+    UpdateEditorBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        specialization:
+          type: string
+        location:
+          type: string
+        bankAccount:
+          type: string
+        monthlySalary:
+          type: number
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        clientId:
+          type: string
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+        clientEmail:
+          type: string
+        projectName:
+          type: string
+        projectType:
+          type: string
+          enum: [ugc, ai_video, editing, branded, corporate, wedding, social_media, graphic_design, ads_setup, website, other]
+        totalValue:
+          type: number
+        modelCost:
+          type: number
+        editorCost:
+          type: number
+        totalDeliverables:
+          type: number
+        editorId:
+          type: string
+        editorName:
+          type: string
+        editorPhone:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+        completedDeliverables:
+          type: number
+        paidAmount:
+          type: number
+        createdAt:
+          type: string
+        deadline:
+          type: string
+        notes:
+          type: string
+        script:
+          type: string
+        revisionRequested:
+          type: boolean
+      required: [id, clientName, projectName, projectType, totalValue, modelCost, editorCost, totalDeliverables, editorId, editorName, status, completedDeliverables, paidAmount, createdAt, revisionRequested]
+
+    CreateProjectBody:
+      type: object
+      properties:
+        clientId:
+          type: string
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+        clientEmail:
+          type: string
+        clientBusinessType:
+          type: string
+        clientCity:
+          type: string
+        projectName:
+          type: string
+        projectType:
+          type: string
+        totalValue:
+          type: number
+        modelCost:
+          type: number
+        editorCost:
+          type: number
+        totalDeliverables:
+          type: number
+        editorId:
+          type: string
+        deadline:
+          type: string
+        notes:
+          type: string
+        script:
+          type: string
+      required: [clientName, projectName, projectType, totalValue, totalDeliverables, editorId]
+
+    UpdateProjectBody:
+      type: object
+      properties:
+        projectName:
+          type: string
+        clientName:
+          type: string
+        clientPhone:
+          type: string
+        clientEmail:
+          type: string
+        totalValue:
+          type: number
+        modelCost:
+          type: number
+        editorCost:
+          type: number
+        totalDeliverables:
+          type: number
+        editorId:
+          type: string
+        deadline:
+          type: string
+        notes:
+          type: string
+        script:
+          type: string
+        status:
+          type: string
+
+    UpdateStatusBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+        completedDeliverables:
+          type: number
+
+    RevisionBody:
+      type: object
+      properties:
+        revisionRequested:
+          type: boolean
+      required: [revisionRequested]
+
+    PaymentBody:
+      type: object
+      properties:
+        paidAmount:
+          type: number
+      required: [paidAmount]
+
+    CalendarDay:
+      type: object
+      properties:
+        count:
+          type: number
+        projects:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              projectName:
+                type: string
+              clientName:
+                type: string
+              status:
+                type: string
+              projectType:
+                type: string
+            required: [id, projectName, clientName, status, projectType]
+      required: [count, projects]
+
+    ProjectReference:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+        note:
+          type: string
+        fileName:
+          type: string
+        fileType:
+          type: string
+        createdAt:
+          type: string
+      required: [id, projectId, title, createdAt]
+
+    AddReferenceBody:
+      type: object
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        note:
+          type: string
+        fileName:
+          type: string
+        fileType:
+          type: string
+      required: [title]
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        senderId:
+          type: string
+        senderName:
+          type: string
+        senderRole:
+          type: string
+          enum: [admin, editor]
+        text:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: string
+        fileType:
+          type: string
+        isAudio:
+          type: boolean
+        createdAt:
+          type: string
+        readBy:
+          type: array
+          items:
+            type: string
+      required: [id, projectId, senderId, senderName, senderRole, createdAt]
+
+    SendMessageBody:
+      type: object
+      properties:
+        senderId:
+          type: string
+        senderName:
+          type: string
+        senderRole:
+          type: string
+          enum: [admin, editor]
+        text:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: string
+        fileType:
+          type: string
+        isAudio:
+          type: boolean
+      required: [senderId, senderName, senderRole]
+
+    VideoSubmission:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        editorId:
+          type: string
+        editorName:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: string
+        deliverableIndex:
+          type: number
+        submittedAt:
+          type: string
+        status:
+          type: string
+          enum: [pending_review, approved, rejected]
+        reviewNote:
+          type: string
+        reviewedAt:
+          type: string
+        projectName:
+          type: string
+        clientName:
+          type: string
+      required: [id, projectId, editorId, editorName, fileName, fileSize, deliverableIndex, submittedAt, status]
+
+    SubmitVideoBody:
+      type: object
+      properties:
+        editorId:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: string
+        deliverableIndex:
+          type: number
+      required: [editorId, fileName, fileSize, deliverableIndex]
+
+    ReviewVideoBody:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [approve, reject]
+        note:
+          type: string
+      required: [action]
+
+    AppNotification:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        projectId:
+          type: string
+        videoId:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, userId, type, title, message, read, createdAt]
+
+    MarkReadBody:
+      type: object
+      properties:
+        userId:
+          type: string
+        notifIds:
+          type: array
+          items:
+            type: string
+      required: [userId]
+
+    DashboardStats:
+      type: object
+      properties:
+        totalProjects:
+          type: number
+        totalEditors:
+          type: number
+        totalClients:
+          type: number
+        todayRevenue:
+          type: number
+        activeProjects:
+          type: number
+        completedProjects:
+          type: number
+        pendingProjects:
+          type: number
+        pendingReviews:
+          type: number
+        customisationProjects:
+          type: number
+      required: [totalProjects, totalEditors, totalClients, todayRevenue, activeProjects, completedProjects, pendingProjects, pendingReviews, customisationProjects]
+
+    AdminProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        businessName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        stats:
+          type: object
+          properties:
+            totalProjects:
+              type: number
+            completedProjects:
+              type: number
+            activeProjects:
+              type: number
+            customisationProjects:
+              type: number
+            totalClients:
+              type: number
+            totalEditors:
+              type: number
+            totalRevenue:
+              type: number
+            netRevenue:
+              type: number
+            totalUgcProjects:
+              type: number
+            totalModelCost:
+              type: number
+            pendingReviews:
+              type: number
+          required: [totalProjects, completedProjects, activeProjects, customisationProjects, totalClients, totalEditors, totalRevenue, netRevenue, totalUgcProjects, totalModelCost, pendingReviews]
+        recentClients:
+          type: array
+          items:
+            $ref: "#/components/schemas/Client"
+      required: [id, name, businessName, email, phone, stats, recentClients]

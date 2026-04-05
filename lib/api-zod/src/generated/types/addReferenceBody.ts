@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface AddReferenceBody {
+  title: string;
+  url?: string;
+  note?: string;
+  fileName?: string;
+  fileType?: string;
 }

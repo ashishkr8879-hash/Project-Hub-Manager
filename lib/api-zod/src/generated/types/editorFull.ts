@@ -5,7 +5,8 @@
  * Divayshakati Project Manager API
  * OpenAPI spec version: 0.1.0
  */
+import type { Editor } from "./editor";
 
-export interface HealthStatus {
-  status: string;
-}
+export type EditorFull = Editor & {
+  password: string;
+};

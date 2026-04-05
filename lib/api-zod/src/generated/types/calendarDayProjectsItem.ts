@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
+export type CalendarDayProjectsItem = {
+  id: string;
+  projectName: string;
+  clientName: string;
   status: string;
-}
+  projectType: string;
+};

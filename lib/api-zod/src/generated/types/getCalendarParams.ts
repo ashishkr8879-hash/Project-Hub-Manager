@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export type GetCalendarParams = {
+  /**
+   * Month filter e.g. 2025-04
+   */
+  month?: string;
+  editorId?: string;
+};

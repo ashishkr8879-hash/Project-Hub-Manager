@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useListNotifications, useListPendingVideos } from "@workspace/api-client-react";
 import {
-  LayoutDashboard, Briefcase, Users, UsersRound, Bell, CalendarDays, Settings, LogOut, PlusCircle, Film
+  LayoutDashboard, Briefcase, Users, UsersRound, Bell, CalendarDays, Settings, LogOut, PlusCircle,
 } from "lucide-react";
 
 interface LayoutProps { children: React.ReactNode; }
@@ -28,19 +28,23 @@ export default function Layout({ children }: LayoutProps) {
   const unreadCount = notifications.filter((n) => !n.read).length;
   const totalBadge = unreadCount + pendingVideos.length;
 
+  const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 flex">
       {/* Sidebar */}
       <aside className="w-60 border-r border-zinc-800/60 bg-zinc-950 flex flex-col fixed inset-y-0 left-0 z-20">
-        {/* Logo */}
-        <div className="h-16 flex items-center px-5 border-b border-zinc-800/60 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white text-black flex items-center justify-center rounded-xl font-bold text-sm tracking-tighter flex-shrink-0">
-              DV
-            </div>
+        {/* Brand */}
+        <div className="h-20 flex items-center px-4 border-b border-zinc-800/60 flex-shrink-0">
+          <div className="flex items-center gap-3 w-full">
+            <img
+              src={logoUrl}
+              alt="Divayshakati"
+              className="w-12 h-12 object-contain flex-shrink-0 drop-shadow-lg"
+            />
             <div>
-              <div className="font-semibold text-sm tracking-tight text-white leading-none">Divayshakati</div>
-              <div className="text-[10px] text-zinc-500 mt-0.5">Command Center</div>
+              <div className="font-bold text-sm tracking-tight text-white leading-none">Divayshakati</div>
+              <div className="text-[10px] text-amber-400/80 mt-0.5 font-medium tracking-wide">Command Center</div>
             </div>
           </div>
         </div>
@@ -56,7 +60,7 @@ export default function Layout({ children }: LayoutProps) {
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 relative ${
                   isActive
-                    ? "bg-blue-500/15 text-blue-400 font-semibold"
+                    ? "bg-blue-600/15 text-blue-400 font-semibold"
                     : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
                 }`}
               >
@@ -68,7 +72,7 @@ export default function Layout({ children }: LayoutProps) {
                   </span>
                 )}
                 {item.href === "/create" && (
-                  <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-400 rounded px-1 py-0.5">NEW</span>
+                  <span className="text-[9px] font-bold bg-amber-500/20 text-amber-400 rounded px-1 py-0.5">NEW</span>
                 )}
               </Link>
             );

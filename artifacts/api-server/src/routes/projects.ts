@@ -68,7 +68,7 @@ interface Notification {
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-const ADMIN = {
+let ADMIN = {
   username: "admin", password: "admin123", id: "admin",
   name: "Divayshakati Admin", businessName: "Divayshakati Productions",
   email: "admin@divayshakati.com", phone: "+91 98765 00001", role: "admin" as const,
@@ -175,6 +175,17 @@ router.get("/admin/profile", (_req, res) => {
     },
     recentClients: clients.slice(-5).reverse(),
   });
+});
+
+router.patch("/admin/profile", (req, res) => {
+  const { name, businessName, email, phone, username, password } = req.body;
+  if (name !== undefined) ADMIN = { ...ADMIN, name };
+  if (businessName !== undefined) ADMIN = { ...ADMIN, businessName };
+  if (email !== undefined) ADMIN = { ...ADMIN, email };
+  if (phone !== undefined) ADMIN = { ...ADMIN, phone };
+  if (username !== undefined) ADMIN = { ...ADMIN, username };
+  if (password !== undefined && password.length >= 4) ADMIN = { ...ADMIN, password };
+  res.json({ id: ADMIN.id, name: ADMIN.name, businessName: ADMIN.businessName, email: ADMIN.email, phone: ADMIN.phone, username: ADMIN.username });
 });
 
 // ─── Clients ──────────────────────────────────────────────────────────────────

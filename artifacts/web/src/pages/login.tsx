@@ -69,9 +69,11 @@ export default function Login() {
       
       <Card className="w-full max-w-md border-zinc-800 bg-zinc-950/50 backdrop-blur-xl shadow-2xl relative z-10">
         <CardHeader className="space-y-2 text-center pb-8">
-          <div className="mx-auto w-12 h-12 bg-white text-black flex items-center justify-center rounded-xl mb-4 font-bold text-xl tracking-tighter">
-            DV
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png`}
+            alt="Divayshakati"
+            className="mx-auto w-16 h-16 object-contain mb-4 drop-shadow-lg"
+          />
           <CardTitle className="text-2xl font-bold tracking-tight text-zinc-100">Divayshakati Command</CardTitle>
           <CardDescription className="text-zinc-400">Authenticate to access the admin portal</CardDescription>
         </CardHeader>

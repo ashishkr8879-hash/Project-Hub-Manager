@@ -54,6 +54,7 @@ interface Project {
 interface VideoSubmission {
   id: string; projectId: string; editorId: string; editorName: string;
   fileName: string; fileSize: string; deliverableIndex: number;
+  submissionLink?: string; submissionType?: "file" | "link";
   submittedAt: string; status: "pending_review" | "approved" | "rejected";
   reviewNote?: string; reviewedAt?: string;
 }
@@ -571,10 +572,10 @@ router.get("/videos/pending", (_req, res) => {
 router.post("/projects/:projectId/videos", (req, res) => {
   const project = projects.find((p) => p.id === req.params.projectId);
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
-  const { editorId, fileName, fileSize, deliverableIndex } = req.body;
+  const { editorId, fileName, fileSize, deliverableIndex, submissionLink, submissionType } = req.body;
   const editor = editors.find((e) => e.id === editorId);
   if (!editor) { res.status(400).json({ error: "Editor not found" }); return; }
-  const video: VideoSubmission = { id: `v${videoIdCounter++}`, projectId: project.id, editorId, editorName: editor.name, fileName, fileSize: fileSize || "Unknown", deliverableIndex: Number(deliverableIndex) || 1, submittedAt: new Date().toISOString(), status: "pending_review" };
+  const video: VideoSubmission = { id: `v${videoIdCounter++}`, projectId: project.id, editorId, editorName: editor.name, fileName, fileSize: fileSize || "Unknown", deliverableIndex: Number(deliverableIndex) || 1, submissionLink: submissionLink || undefined, submissionType: submissionType || "file", submittedAt: new Date().toISOString(), status: "pending_review" };
   videoSubmissions.push(video);
   pushNotif({ userId: "admin", type: "video_submitted", title: "New Video Uploaded", message: `${editor.name} uploaded ${fileName} for ${project.projectName}`, projectId: project.id, videoId: video.id });
   res.status(201).json(video);

@@ -45,73 +45,204 @@ function timeAgo(iso: string) {
 function SubmitWorkModal({
   projectId, editorId, specialization, onClose, onDone,
 }: { projectId: string; editorId: string; specialization: string; onClose: () => void; onDone: () => void }) {
-  const [fileName, setFileName] = useState("");
-  const [fileSize, setFileSize] = useState("");
+  const [mode, setMode] = useState<"upload" | "link">("upload");
+
+  // Upload mode state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  // Link mode state
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkTitle, setLinkTitle] = useState("");
+
   const [deliverableIndex, setDeliverableIndex] = useState("1");
+  const [done, setDone] = useState(false);
   const submitMut = useSubmitVideo();
 
   const cfg = SPEC_UPLOAD[specialization] ?? SPEC_UPLOAD["Video Editor"];
   const Icon = cfg.icon;
 
+  function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault(); setDragging(false);
+    if (e.dataTransfer.files?.[0]) setSelectedFile(e.dataTransfer.files[0]);
+  }
+
+  function formatBytes(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   async function submit() {
-    if (!fileName.trim()) return;
+    const canSubmitUpload = mode === "upload" && selectedFile;
+    const canSubmitLink   = mode === "link" && linkUrl.trim();
+    if (!canSubmitUpload && !canSubmitLink) return;
+
+    let hostFallback = linkUrl.trim();
+    try { hostFallback = new URL(linkUrl.trim()).hostname; } catch { /* keep raw */ }
+    const fileName = mode === "upload"
+      ? selectedFile!.name
+      : (linkTitle.trim() || hostFallback);
+    const fileSize = mode === "upload"
+      ? formatBytes(selectedFile!.size)
+      : "—";
+    const submissionLink = mode === "link" ? linkUrl.trim() : undefined;
+
     await submitMut.mutateAsync({
       projectId,
-      data: { editorId, fileName: fileName.trim(), fileSize: fileSize.trim() || "Unknown", deliverableIndex: +deliverableIndex || 1 },
+      data: {
+        editorId,
+        fileName,
+        fileSize,
+        deliverableIndex: +deliverableIndex || 1,
+        submissionLink,
+        submissionType: mode,
+      } as any,
     });
-    onDone();
+    setDone(true);
+    setTimeout(onDone, 900);
   }
+
+  const canSubmit = mode === "upload" ? !!selectedFile : !!linkUrl.trim();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-sm z-10 shadow-2xl">
+        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-zinc-800/60">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Icon className="w-4 h-4" style={{ color: cfg.color }} />{cfg.label}
           </h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800">
+            <X className="w-4 h-4" />
+          </button>
         </div>
-        <div className="p-5 space-y-3">
-          <div>
-            <label className="text-xs text-zinc-500 block mb-1">File Name *</label>
-            <input
-              value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              placeholder={cfg.hint}
-              className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white placeholder-zinc-600"
-            />
+
+        <div className="p-5 space-y-4">
+          {/* Mode toggle */}
+          <div className="flex bg-zinc-900 border border-zinc-800/60 rounded-xl p-1 gap-1">
+            <button
+              onClick={() => setMode("upload")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${mode === "upload" ? "text-white" : "text-zinc-400 hover:text-zinc-200"}`}
+              style={mode === "upload" ? { backgroundColor: cfg.color } : {}}
+            >
+              <Upload className="w-3.5 h-3.5" />Upload File
+            </button>
+            <button
+              onClick={() => setMode("link")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-colors ${mode === "link" ? "text-white" : "text-zinc-400 hover:text-zinc-200"}`}
+              style={mode === "link" ? { backgroundColor: cfg.color } : {}}
+            >
+              <Link2 className="w-3.5 h-3.5" />Submit Link
+            </button>
           </div>
+
+          {/* Upload mode */}
+          {mode === "upload" && (
+            <div>
+              <input
+                type="file"
+                id="file-upload-input"
+                className="hidden"
+                onChange={handleFilePick}
+              />
+              <label
+                htmlFor="file-upload-input"
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
+                className={`flex flex-col items-center justify-center w-full min-h-[140px] rounded-2xl border-2 border-dashed cursor-pointer transition-all ${dragging ? "scale-[1.01]" : ""}`}
+                style={{
+                  borderColor: dragging ? cfg.color : (selectedFile ? cfg.color + "80" : "rgba(255,255,255,0.1)"),
+                  backgroundColor: selectedFile
+                    ? cfg.color + "10"
+                    : dragging ? cfg.color + "08" : "rgba(255,255,255,0.02)",
+                }}
+              >
+                {selectedFile ? (
+                  <div className="text-center px-4">
+                    <Icon className="w-8 h-8 mx-auto mb-2" style={{ color: cfg.color }} />
+                    <p className="text-sm font-semibold text-white truncate max-w-[240px]">{selectedFile.name}</p>
+                    <p className="text-xs text-zinc-400 mt-1">{formatBytes(selectedFile.size)}</p>
+                    <p className="text-[10px] mt-2 font-medium" style={{ color: cfg.color }}>Click to change file</p>
+                  </div>
+                ) : (
+                  <div className="text-center px-4">
+                    <Upload className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
+                    <p className="text-sm font-semibold text-white">Click to upload or drag & drop</p>
+                    <p className="text-xs text-zinc-500 mt-1">{cfg.hint}</p>
+                  </div>
+                )}
+              </label>
+            </div>
+          )}
+
+          {/* Link mode */}
+          {mode === "link" && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1.5">Drive / Dropbox / YouTube Link *</label>
+                <div className="relative">
+                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
+                  <input
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    placeholder="https://drive.google.com/..."
+                    className="w-full pl-9 pr-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1.5">Title / Description</label>
+                <input
+                  value={linkTitle}
+                  onChange={(e) => setLinkTitle(e.target.value)}
+                  placeholder={cfg.hint}
+                  className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Deliverable # */}
           <div>
-            <label className="text-xs text-zinc-500 block mb-1">File Size</label>
-            <input
-              value={fileSize}
-              onChange={(e) => setFileSize(e.target.value)}
-              placeholder="e.g. 50 MB"
-              className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white placeholder-zinc-600"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-500 block mb-1">Deliverable #</label>
+            <label className="text-xs text-zinc-500 block mb-1.5">Deliverable #</label>
             <input
               type="number" min="1"
               value={deliverableIndex}
               onChange={(e) => setDeliverableIndex(e.target.value)}
-              className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white"
+              className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800/60 rounded-xl text-sm text-white focus:outline-none focus:border-zinc-600"
             />
           </div>
-          <div className="flex gap-2 pt-1">
+
+          {done && (
+            <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2 text-center">
+              ✓ Submitted successfully!
+            </p>
+          )}
+
+          {/* Buttons */}
+          <div className="flex gap-2">
             <button
               onClick={submit}
-              disabled={!fileName.trim() || submitMut.isPending}
+              disabled={!canSubmit || submitMut.isPending || done}
               className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
               style={{ backgroundColor: cfg.color }}
             >
               {submitMut.isPending
                 ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting...</>
-                : <><Upload className="w-4 h-4" />{cfg.label}</>}
+                : mode === "upload"
+                  ? <><Upload className="w-4 h-4" />{cfg.label}</>
+                  : <><Link2 className="w-4 h-4" />Submit Link</>}
             </button>
-            <button onClick={onClose} className="px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 text-sm hover:bg-zinc-700">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 text-sm hover:bg-zinc-700">
+              Cancel
+            </button>
           </div>
         </div>
       </div>

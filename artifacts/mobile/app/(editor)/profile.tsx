@@ -2,13 +2,12 @@ import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   Linking,
-  Modal,
   Platform,
   RefreshControl,
   ScrollView,
@@ -23,182 +22,8 @@ import { useQuery } from "@tanstack/react-query";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
-import { useEditorTheme, getSpecTheme } from "@/hooks/useEditorTheme";
-import { fetchEditorProfile, fetchEditors, fetchEditorAnalytics, Editor } from "@/hooks/useApi";
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
-// ── Calendar helper ────────────────────────────────────────────────────────────
-function buildCalendarGrid(year: number, month: number) {
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const cells: (number | null)[] = Array(firstDay).fill(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-  return cells;
-}
-
-function toDateKey(year: number, month: number, day: number) {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-// ── Project calendar for a specific editor ─────────────────────────────────────
-function MemberCalendar({
-  projectsByDate,
-  colors,
-  accentColor,
-}: {
-  projectsByDate: { date: string; projects: any[]; dayRevenue: number }[];
-  colors: ReturnType<typeof useColors>;
-  accentColor: string;
-}) {
-  const today = new Date();
-  const [calYear, setCalYear] = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(today.getMonth());
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
-
-  const dateMap = useMemo(() => {
-    const m: Record<string, { count: number; projects: any[]; dayRevenue: number }> = {};
-    for (const entry of projectsByDate) {
-      m[entry.date] = { count: entry.projects.length, projects: entry.projects, dayRevenue: entry.dayRevenue };
-    }
-    return m;
-  }, [projectsByDate]);
-
-  const grid = useMemo(() => buildCalendarGrid(calYear, calMonth), [calYear, calMonth]);
-
-  const todayKey = toDateKey(today.getFullYear(), today.getMonth(), today.getDate());
-
-  function prevMonth() {
-    setSelectedDay(null);
-    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
-    else setCalMonth(m => m - 1);
-  }
-  function nextMonth() {
-    setSelectedDay(null);
-    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
-    else setCalMonth(m => m + 1);
-  }
-
-  const selectedEntry = selectedDay ? dateMap[selectedDay] : null;
-
-  function dotColor(count: number) {
-    if (count >= 4) return colors.destructive;
-    if (count >= 2) return colors.primary;
-    return colors.success;
-  }
-
-  return (
-    <View style={[calStyles.wrapper, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      {/* Month navigation */}
-      <View style={calStyles.header}>
-        <TouchableOpacity onPress={prevMonth} style={calStyles.navBtn} activeOpacity={0.7}>
-          <Feather name="chevron-left" size={20} color={colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[calStyles.monthLabel, { color: colors.foreground }]}>
-          {MONTH_NAMES[calMonth]} {calYear}
-        </Text>
-        <TouchableOpacity onPress={nextMonth} style={calStyles.navBtn} activeOpacity={0.7}>
-          <Feather name="chevron-right" size={20} color={colors.foreground} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Weekday header */}
-      <View style={calStyles.weekRow}>
-        {WEEKDAYS.map((d) => (
-          <Text key={d} style={[calStyles.weekDay, { color: colors.mutedForeground }]}>{d}</Text>
-        ))}
-      </View>
-
-      {/* Day cells */}
-      <View style={calStyles.grid}>
-        {grid.map((day, idx) => {
-          if (day === null) return <View key={`e-${idx}`} style={calStyles.cell} />;
-          const key = toDateKey(calYear, calMonth, day);
-          const entry = dateMap[key];
-          const count = entry?.count ?? 0;
-          const isToday = key === todayKey;
-          const isSelected = key === selectedDay;
-          return (
-            <TouchableOpacity
-              key={key}
-              style={[
-                calStyles.cell,
-                isSelected && { backgroundColor: accentColor, borderRadius: 10 },
-                isToday && !isSelected && { borderWidth: 1.5, borderColor: accentColor, borderRadius: 10 },
-              ]}
-              onPress={() => {
-                if (count > 0) {
-                  setSelectedDay(isSelected ? null : key);
-                  Haptics.selectionAsync();
-                }
-              }}
-              activeOpacity={count > 0 ? 0.7 : 1}
-            >
-              <Text style={[
-                calStyles.dayNum,
-                { color: isSelected ? "#fff" : isToday ? accentColor : colors.foreground },
-              ]}>
-                {day}
-              </Text>
-              {count > 0 && (
-                <View style={[calStyles.dot, { backgroundColor: isSelected ? "#fff" : dotColor(count) }]}>
-                  <Text style={[calStyles.dotCount, { color: isSelected ? accentColor : "#fff" }]}>
-                    {count}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Legend */}
-      <View style={calStyles.legend}>
-        <View style={calStyles.legendItem}>
-          <View style={[calStyles.legendDot, { backgroundColor: colors.success }]} />
-          <Text style={[calStyles.legendText, { color: colors.mutedForeground }]}>1 project</Text>
-        </View>
-        <View style={calStyles.legendItem}>
-          <View style={[calStyles.legendDot, { backgroundColor: colors.primary }]} />
-          <Text style={[calStyles.legendText, { color: colors.mutedForeground }]}>2–3 projects</Text>
-        </View>
-        <View style={calStyles.legendItem}>
-          <View style={[calStyles.legendDot, { backgroundColor: colors.destructive }]} />
-          <Text style={[calStyles.legendText, { color: colors.mutedForeground }]}>4+ projects</Text>
-        </View>
-      </View>
-
-      {/* Selected day detail */}
-      {selectedEntry && selectedDay && (
-        <View style={[calStyles.dayDetail, { borderTopColor: colors.border }]}>
-          <View style={calStyles.dayDetailHeader}>
-            <Text style={[calStyles.dayDetailDate, { color: accentColor }]}>
-              {new Date(selectedDay + "T00:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-            </Text>
-            <View style={[calStyles.dayRevBadge, { backgroundColor: `${colors.success}18` }]}>
-              <Text style={[calStyles.dayRevText, { color: colors.success }]}>₹{selectedEntry.dayRevenue.toLocaleString()}</Text>
-            </View>
-          </View>
-          <Text style={[calStyles.dayProjectCount, { color: colors.mutedForeground }]}>
-            {selectedEntry.count} project{selectedEntry.count > 1 ? "s" : ""} on this day
-          </Text>
-          {selectedEntry.projects.map((p: any) => (
-            <View key={p.id} style={[calStyles.dayProject, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[calStyles.dayProjectName, { color: colors.foreground }]} numberOfLines={1}>{p.projectName}</Text>
-                <Text style={[calStyles.dayProjectClient, { color: colors.mutedForeground }]} numberOfLines={1}>{p.clientName}</Text>
-                <Text style={[calStyles.dayProjectValue, { color: colors.success }]}>₹{p.totalValue.toLocaleString()}</Text>
-              </View>
-              <StatusBadge status={p.status} />
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-}
+import { useEditorTheme } from "@/hooks/useEditorTheme";
+import { fetchEditorProfile } from "@/hooks/useApi";
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function EditorProfileScreen() {
@@ -209,27 +34,12 @@ export default function EditorProfileScreen() {
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const editorId = currentUser?.editorId ?? currentUser?.id ?? "";
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [selectedMember, setSelectedMember] = useState<Editor | null>(null);
-  const [memberModalVisible, setMemberModalVisible] = useState(false);
 
   const { data: profile, isLoading, refetch } = useQuery({
     queryKey: ["editor-profile", editorId],
     queryFn: () => fetchEditorProfile(editorId),
     enabled: !!editorId,
   });
-
-  const { data: editors = [] } = useQuery({
-    queryKey: ["editors"],
-    queryFn: fetchEditors,
-  });
-
-  const { data: memberProfile, isLoading: memberProfileLoading } = useQuery({
-    queryKey: ["editor-analytics", selectedMember?.id],
-    queryFn: () => fetchEditorAnalytics(selectedMember!.id),
-    enabled: !!selectedMember,
-  });
-
-  const memberTheme = getSpecTheme(selectedMember?.specialization);
 
   useEffect(() => {
     if (!editorId) return;
@@ -290,18 +100,11 @@ export default function EditorProfileScreen() {
     ]);
   }
 
-  function openMember(member: Editor) {
-    setSelectedMember(member);
-    setMemberModalVisible(true);
-  }
-
   const initials = (profile?.name ?? currentUser?.name ?? "E")
     .split(" ").map((w: string) => w[0]).join("").toUpperCase();
 
-  const teammates = editors.filter((e) => e.id !== editorId);
-
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 100 }]}
@@ -405,38 +208,6 @@ export default function EditorProfileScreen() {
           </View>
         )}
 
-        {/* ── Team Members ─────────────────────────────────────────────────── */}
-        {teammates.length > 0 && (
-          <>
-            <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: profile ? 0 : 20 }]}>Team Members</Text>
-            <Text style={[styles.sectionSub, { color: colors.mutedForeground }]}>Tap to view profile & project calendar</Text>
-            {teammates.map((member) => {
-              const memberInitials = member.name.split(" ").map((w: string) => w[0]).join("").toUpperCase();
-              return (
-                <TouchableOpacity
-                  key={member.id}
-                  onPress={() => openMember(member)}
-                  activeOpacity={0.75}
-                  style={[styles.memberCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-                >
-                  <View style={[styles.memberAvatar, { backgroundColor: `${theme.primary}22` }]}>
-                    <Text style={[styles.memberInitials, { color: theme.primary }]}>{memberInitials}</Text>
-                  </View>
-                  <View style={styles.memberInfo}>
-                    <Text style={[styles.memberName, { color: colors.foreground }]}>{member.name}</Text>
-                    <Text style={[styles.memberSpec, { color: colors.mutedForeground }]}>{member.specialization}</Text>
-                    <View style={styles.memberMeta}>
-                      <Feather name="mail" size={11} color={colors.mutedForeground} />
-                      <Text style={[styles.memberMetaText, { color: colors.mutedForeground }]}>{member.email}</Text>
-                    </View>
-                  </View>
-                  <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-                </TouchableOpacity>
-              );
-            })}
-          </>
-        )}
-
         {/* ── Actions ──────────────────────────────────────────────────────── */}
         <TouchableOpacity
           onPress={handleCallAdmin}
@@ -454,115 +225,7 @@ export default function EditorProfileScreen() {
           <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
-
-      {/* ── Team Member Profile Modal ─────────────────────────────────────── */}
-      <Modal
-        visible={memberModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setMemberModalVisible(false)}
-      >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Team Member Profile</Text>
-            <TouchableOpacity onPress={() => setMemberModalVisible(false)} style={styles.modalClose}>
-              <Feather name="x" size={22} color={colors.foreground} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            {memberProfileLoading ? (
-              <ActivityIndicator color={memberTheme.primary} style={{ marginTop: 60 }} />
-            ) : memberProfile && selectedMember ? (
-              <>
-                {/* Hero */}
-                <View style={[styles.memberHero, { backgroundColor: memberTheme.primary }]}>
-                  <View style={[styles.memberHeroAvatar, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-                    <Text style={styles.memberHeroInitials}>
-                      {selectedMember.name.split(" ").map((w: string) => w[0]).join("").toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={styles.memberHeroName}>{selectedMember.name}</Text>
-                  <Text style={styles.memberHeroSpec}>{selectedMember.specialization}</Text>
-                  <View style={styles.heroMetaRow}>
-                    <View style={styles.metaItem}>
-                      <Feather name="mail" size={12} color="rgba(255,255,255,0.8)" />
-                      <Text style={styles.metaItemText}>{selectedMember.email}</Text>
-                    </View>
-                    <View style={styles.metaItem}>
-                      <Feather name="phone" size={12} color="rgba(255,255,255,0.8)" />
-                      <Text style={styles.metaItemText}>{selectedMember.phone}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Stats */}
-                <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4 }]}>Statistics</Text>
-                <View style={styles.statsGrid}>
-                  <StatBox label="Total Projects"   value={String((memberProfile as any).stats?.totalProjects ?? 0)}       color={memberTheme.primary} colors={colors} />
-                  <StatBox label="Completed"         value={String((memberProfile as any).stats?.completedProjects ?? 0)}   color={colors.success}       colors={colors} />
-                  <StatBox label="In Progress"       value={String((memberProfile as any).stats?.inProgressProjects ?? 0)}  color={colors.primary}       colors={colors} />
-                  <StatBox label="Pending"           value={String((memberProfile as any).stats?.pendingProjects ?? 0)}     color={colors.warning}       colors={colors} />
-                  <StatBox label="Videos Uploaded"   value={String((memberProfile as any).stats?.totalVideosUploaded ?? 0)} color={memberTheme.primary} colors={colors} />
-                  <StatBox label="Approved"          value={String((memberProfile as any).stats?.approvedVideos ?? 0)}      color={colors.success}       colors={colors} />
-                  <StatBox label="Rejected"          value={String((memberProfile as any).stats?.rejectedVideos ?? 0)}      color={colors.destructive}   colors={colors} />
-                  <StatBox label="In Review"         value={String((memberProfile as any).stats?.pendingReviewVideos ?? 0)} color={colors.warning}       colors={colors} />
-                </View>
-
-                {/* Earnings */}
-                <View style={[styles.earningsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={[styles.earningsIcon, { backgroundColor: `${colors.success}18` }]}>
-                    <Feather name="dollar-sign" size={24} color={colors.success} />
-                  </View>
-                  <View>
-                    <Text style={[styles.earningsLabel, { color: colors.mutedForeground }]}>Total Earnings (Completed)</Text>
-                    <Text style={[styles.earningsValue, { color: colors.foreground }]}>
-                      ₹{((memberProfile as any).stats?.totalEarnings ?? 0).toLocaleString()}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Project Calendar */}
-                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Project Calendar</Text>
-                <Text style={[styles.sectionSub, { color: colors.mutedForeground, marginTop: -8 }]}>
-                  Tap a highlighted date to see projects
-                </Text>
-                <MemberCalendar
-                  projectsByDate={(memberProfile as any).projectsByDate ?? []}
-                  colors={colors}
-                  accentColor={memberTheme.primary}
-                />
-
-                {/* Recent Projects */}
-                {(memberProfile as any).allProjects?.length > 0 && (
-                  <>
-                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>All Projects</Text>
-                    {((memberProfile as any).allProjects as any[]).slice(0, 8).map((p: any) => (
-                      <View key={p.id} style={[styles.projectRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                        <View style={styles.projectRowLeft}>
-                          <Text style={[styles.projectRowName, { color: colors.foreground }]} numberOfLines={1}>{p.projectName}</Text>
-                          <Text style={[styles.projectRowClient, { color: colors.mutedForeground }]} numberOfLines={1}>{p.clientName}</Text>
-                          <View style={styles.projectRowMeta}>
-                            <Text style={[styles.projectRowValue, { color: colors.success }]}>₹{(p.totalValue ?? 0).toLocaleString()}</Text>
-                            <Text style={[styles.projectRowDeliverable, { color: colors.mutedForeground }]}>{p.completedDeliverables ?? 0}/{p.totalDeliverables ?? 0} deliverables</Text>
-                          </View>
-                        </View>
-                        {p.status ? <StatusBadge status={p.status} /> : null}
-                      </View>
-                    ))}
-                  </>
-                )}
-              </>
-            ) : (
-              <View style={styles.errorBox}>
-                <Feather name="alert-circle" size={32} color={colors.mutedForeground} />
-                <Text style={[styles.errorText, { color: colors.mutedForeground }]}>Could not load profile</Text>
-              </View>
-            )}
-          </ScrollView>
-        </View>
-      </Modal>
-    </>
+    </View>
   );
 }
 
@@ -624,42 +287,4 @@ const styles = StyleSheet.create({
   memberMeta: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   memberMetaText: { fontSize: 11, fontFamily: "Inter_400Regular" },
   modalContainer: { flex: 1 },
-  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, paddingTop: 20, borderBottomWidth: 1 },
-  modalTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  modalClose: { padding: 4 },
-  modalContent: { padding: 20, gap: 16, paddingBottom: 60 },
-  memberHero: { borderRadius: 20, padding: 24, alignItems: "center", gap: 8 },
-  memberHeroAvatar: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  memberHeroInitials: { fontSize: 28, fontFamily: "Inter_700Bold", color: "#fff" },
-  memberHeroName: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#fff" },
-  memberHeroSpec: { fontSize: 13, fontFamily: "Inter_500Medium", color: "rgba(255,255,255,0.85)" },
-  heroMetaRow: { marginTop: 8, gap: 4, alignItems: "center" },
-});
-
-const calStyles = StyleSheet.create({
-  wrapper: { borderRadius: 18, borderWidth: 1, padding: 16, gap: 12 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  navBtn: { padding: 6 },
-  monthLabel: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  weekRow: { flexDirection: "row" },
-  weekDay: { flex: 1, textAlign: "center", fontSize: 11, fontFamily: "Inter_500Medium" },
-  grid: { flexDirection: "row", flexWrap: "wrap" },
-  cell: { width: "14.28%", aspectRatio: 1, alignItems: "center", justifyContent: "center", gap: 2 },
-  dayNum: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  dot: { width: 18, height: 12, borderRadius: 6, alignItems: "center", justifyContent: "center" },
-  dotCount: { fontSize: 9, fontFamily: "Inter_700Bold" },
-  legend: { flexDirection: "row", justifyContent: "center", gap: 14, marginTop: 4 },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  dayDetail: { borderTopWidth: 1, paddingTop: 14, gap: 10, marginTop: 4 },
-  dayDetailHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  dayDetailDate: { fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 },
-  dayRevBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  dayRevText: { fontSize: 13, fontFamily: "Inter_700Bold" },
-  dayProjectCount: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: -4 },
-  dayProject: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 12, borderWidth: 1, padding: 12, gap: 8 },
-  dayProjectName: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  dayProjectClient: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  dayProjectValue: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 2 },
 });

@@ -1,5 +1,4 @@
 import app from "./app";
-import { logger } from "./lib/logger";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -17,22 +16,16 @@ try {
     if (key && !(key in process.env)) process.env[key] = val;
   }
 } catch {
-  // .env not found — that's fine, use env vars directly
+  // .env not found — use env vars directly
 }
 
-const rawPort = process.env["PORT"] ?? "3000";
-const port = Number(rawPort);
+const finalPort = Number(process.env["PORT"] ?? "3000") || 3000;
 
-if (Number.isNaN(port) || port <= 0) {
-  console.error(`Invalid PORT value: "${rawPort}", defaulting to 3000`);
-}
+console.log(`[INFO] Starting Divayshakati server on port ${finalPort} (NODE_ENV=${process.env.NODE_ENV})`);
 
-const finalPort = Number.isNaN(port) || port <= 0 ? 3000 : port;
-
-app.listen(finalPort, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
-  logger.info({ port: finalPort }, "Server listening");
+app.listen(finalPort, () => {
+  console.log(`[INFO] Server listening on port ${finalPort}`);
+}).on("error", (err) => {
+  console.error("[ERROR] Failed to start server:", err.message);
+  process.exit(1);
 });

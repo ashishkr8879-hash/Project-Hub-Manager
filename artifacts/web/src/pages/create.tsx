@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useListClients, useListEditors, useCreateClient, useCreateProject, useAddProjectReference } from "@workspace/api-client-react";
 import type { CreateProjectBody } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
-  ChevronLeft, ChevronRight, Check, Plus, X, User, Building2,
-  Calendar, FileText, DollarSign, Film, Star, Upload, Link2, Paperclip, BookOpen,
+  ChevronLeft, ChevronRight, Check, Plus, X, User,
+  Upload, Link2, Paperclip, BookOpen,
 } from "lucide-react";
 
 type ProjectType = "ugc" | "ai_video" | "editing" | "branded" | "corporate" | "wedding" | "social_media" | "graphic_design" | "ads_setup" | "website" | "other";
@@ -78,6 +78,9 @@ export default function Create() {
   const [references, setReferences] = useState<AttachItem[]>([]);
   const [attachInput, setAttachInput] = useState<{ type: "file" | "link"; title: string; value: string } | null>(null);
   const [refInput, setRefInput] = useState<{ type: "file" | "link"; title: string; value: string } | null>(null);
+
+  const attachFileInputRef = useRef<HTMLInputElement>(null);
+  const refFileInputRef = useRef<HTMLInputElement>(null);
 
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -415,39 +418,56 @@ export default function Create() {
           {/* ── FILE UPLOAD (OPTIONAL) ── */}
           <div className="space-y-2">
             <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">File Upload <span className="font-normal normal-case">(Optional)</span></p>
+
+            {/* Hidden file input for attachments */}
+            <input
+              ref={attachFileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const url = URL.createObjectURL(file);
+                setAttachments((p) => [...p, { id: genId(), title: file.name, url, fileName: file.name, type: "file" }]);
+                e.target.value = "";
+              }}
+            />
+
             {attachments.length > 0 && (
               <div className="space-y-1.5">
                 {attachments.map((a) => (
                   <div key={a.id} className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-3 py-2">
                     {a.type === "file" ? <Paperclip className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" /> : <Link2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />}
                     <span className="text-xs text-white flex-1 truncate">{a.title}</span>
+                    {a.url && a.type === "file" && (
+                      <a href={a.url} download={a.fileName} className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors flex-shrink-0">↓</a>
+                    )}
                     <button onClick={() => setAttachments((p) => p.filter((x) => x.id !== a.id))} className="text-zinc-600 hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
               </div>
             )}
-            {attachInput && (
+
+            {attachInput && attachInput.type === "link" && (
               <div className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl p-3 space-y-2">
                 <input
                   autoFocus
                   value={attachInput.title}
                   onChange={(e) => setAttachInput((p) => p ? { ...p, title: e.target.value } : p)}
-                  placeholder={attachInput.type === "file" ? "File name (e.g. brand_kit.zip)" : "Label (e.g. Drive Link)"}
+                  placeholder="Label (e.g. Drive Link)"
                   className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600"
                 />
-                {attachInput.type === "link" && (
-                  <input
-                    value={attachInput.value}
-                    onChange={(e) => setAttachInput((p) => p ? { ...p, value: e.target.value } : p)}
-                    placeholder="URL (https://...)"
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600"
-                  />
-                )}
+                <input
+                  value={attachInput.value}
+                  onChange={(e) => setAttachInput((p) => p ? { ...p, value: e.target.value } : p)}
+                  placeholder="URL (https://...)"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600"
+                />
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
                       if (!attachInput.title.trim()) return;
-                      setAttachments((p) => [...p, { id: genId(), title: attachInput.title.trim(), url: attachInput.type === "link" ? attachInput.value.trim() || undefined : undefined, fileName: attachInput.type === "file" ? attachInput.title.trim() : undefined, type: attachInput.type }]);
+                      setAttachments((p) => [...p, { id: genId(), title: attachInput.title.trim(), url: attachInput.value.trim() || undefined, type: "link" }]);
                       setAttachInput(null);
                     }}
                     className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
@@ -457,10 +477,11 @@ export default function Create() {
                 </div>
               </div>
             )}
+
             {!attachInput && (
               <div className="flex gap-2">
                 <button
-                  onClick={() => setAttachInput({ type: "file", title: "", value: "" })}
+                  onClick={() => attachFileInputRef.current?.click()}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-700/60 bg-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-600 text-xs font-semibold transition-colors"
                 >
                   <Upload className="w-3.5 h-3.5" />Attach File
@@ -481,25 +502,44 @@ export default function Create() {
               <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">References <span className="font-normal normal-case">(Optional)</span></p>
               <p className="text-[11px] text-zinc-600 mt-0.5">Add briefs, moodboards, links, or any files for the editor.</p>
             </div>
+
+            {/* Hidden file input for references */}
+            <input
+              ref={refFileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const url = URL.createObjectURL(file);
+                setReferences((p) => [...p, { id: genId(), title: file.name, url, fileName: file.name, type: "file", note: "reference" }]);
+                e.target.value = "";
+              }}
+            />
+
             {references.length > 0 && (
               <div className="space-y-1.5">
                 {references.map((r) => (
                   <div key={r.id} className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700/60 rounded-xl px-3 py-2">
                     {r.type === "file" ? <BookOpen className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" /> : <Link2 className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
                     <span className="text-xs text-white flex-1 truncate">{r.title}</span>
-                    {r.url && <span className="text-[10px] text-zinc-500 truncate max-w-[100px]">{r.url}</span>}
+                    {r.url && r.type === "link" && <span className="text-[10px] text-zinc-500 truncate max-w-[100px]">{r.url}</span>}
+                    {r.url && r.type === "file" && (
+                      <a href={r.url} download={r.fileName} className="text-[10px] text-amber-400 hover:text-amber-300 transition-colors flex-shrink-0">↓</a>
+                    )}
                     <button onClick={() => setReferences((p) => p.filter((x) => x.id !== r.id))} className="text-zinc-600 hover:text-red-400 transition-colors"><X className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
               </div>
             )}
-            {refInput && (
+
+            {refInput && refInput.type === "link" && (
               <div className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl p-3 space-y-2">
                 <input
                   autoFocus
                   value={refInput.title}
                   onChange={(e) => setRefInput((p) => p ? { ...p, title: e.target.value } : p)}
-                  placeholder={refInput.type === "file" ? "File name (e.g. moodboard.pdf)" : "Label (e.g. Brand Guidelines)"}
+                  placeholder="Label (e.g. Brand Guidelines)"
                   className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-600"
                 />
                 <input
@@ -512,7 +552,7 @@ export default function Create() {
                   <button
                     onClick={() => {
                       if (!refInput.title.trim()) return;
-                      setReferences((p) => [...p, { id: genId(), title: refInput.title.trim(), url: refInput.value.trim() || undefined, fileName: refInput.type === "file" ? refInput.title.trim() : undefined, type: refInput.type }]);
+                      setReferences((p) => [...p, { id: genId(), title: refInput.title.trim(), url: refInput.value.trim() || undefined, type: "link", note: "reference" }]);
                       setRefInput(null);
                     }}
                     className="flex-1 py-2 rounded-xl bg-amber-600 text-white text-sm hover:bg-amber-700 disabled:opacity-50"
@@ -522,10 +562,11 @@ export default function Create() {
                 </div>
               </div>
             )}
+
             {!refInput && (
               <div className="flex gap-2">
                 <button
-                  onClick={() => setRefInput({ type: "file", title: "", value: "" })}
+                  onClick={() => refFileInputRef.current?.click()}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-700/60 bg-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-600 text-xs font-semibold transition-colors"
                 >
                   <Upload className="w-3.5 h-3.5" />Upload File Ref

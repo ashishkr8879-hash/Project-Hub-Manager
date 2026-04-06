@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useListPendingVideos, useReviewVideo, useListNotifications, useMarkNotificationsRead } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Film, Bell, Check, X, CheckCircle2, XCircle, RefreshCw, MessageSquare, Briefcase, ArrowRight } from "lucide-react";
+import { Film, Bell, Check, X, CheckCircle2, XCircle, RefreshCw, MessageSquare, Briefcase, ArrowRight, ExternalLink, Download, Play, Image as ImageIcon, Link2 } from "lucide-react";
 
 type ReviewStatus = "approved" | "rejected";
 
@@ -25,10 +25,22 @@ function timeAgo(d: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+function getFileType(fileName: string, url?: string): "video" | "image" | "link" | "file" {
+  const name = (fileName || url || "").toLowerCase();
+  if (/\.(mp4|mov|webm|avi|mkv|m4v)$/.test(name)) return "video";
+  if (/\.(jpg|jpeg|png|gif|webp|svg)$/.test(name)) return "image";
+  if (url && (url.startsWith("http://") || url.startsWith("https://"))) return "link";
+  return "file";
+}
+
 function ReviewModal({ video, onClose }: { video: any; onClose: () => void }) {
   const qc = useQueryClient();
   const [note, setNote] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
   const reviewMut = useReviewVideo();
+
+  const link: string | undefined = video.submissionLink;
+  const fileType = getFileType(video.fileName, link);
 
   async function doReview(status: ReviewStatus) {
     await reviewMut.mutateAsync({ videoId: video.id, data: { status, note } });
@@ -36,24 +48,93 @@ function ReviewModal({ video, onClose }: { video: any; onClose: () => void }) {
     onClose();
   }
 
+  function handleDownload() {
+    if (!link) return;
+    const a = document.createElement("a");
+    a.href = link;
+    a.download = video.fileName;
+    a.target = "_blank";
+    a.click();
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md z-10 shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-zinc-800/60">
+      <div className="relative bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-lg z-10 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-zinc-800/60 sticky top-0 bg-zinc-950 z-10">
           <h2 className="text-base font-bold text-white">Review Video</h2>
           <button onClick={onClose} className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-5 space-y-4">
-          {/* Video info */}
-          <div className="bg-zinc-900 border border-zinc-800/60 rounded-xl p-4 space-y-1">
-            <div className="flex items-center gap-2">
-              <Film className="w-4 h-4 text-blue-400 flex-shrink-0" />
-              <p className="text-sm font-semibold text-white truncate">{video.fileName}</p>
+          {/* File info + action buttons */}
+          <div className="bg-zinc-900 border border-zinc-800/60 rounded-xl p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                {fileType === "video" ? <Play className="w-4 h-4 text-blue-400" /> :
+                 fileType === "image" ? <ImageIcon className="w-4 h-4 text-blue-400" /> :
+                 fileType === "link" ? <Link2 className="w-4 h-4 text-blue-400" /> :
+                 <Film className="w-4 h-4 text-blue-400" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">{video.fileName}</p>
+                <p className="text-xs text-zinc-500">{video.projectName} · {video.clientName}</p>
+                <p className="text-xs text-zinc-500">By <span className="text-zinc-300">{video.editorName}</span> · {video.fileSize}</p>
+                <p className="text-[10px] text-zinc-600 mt-0.5">{new Date(video.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+              </div>
             </div>
-            <p className="text-xs text-zinc-500 ml-6">{video.projectName}</p>
-            <p className="text-xs text-zinc-500 ml-6">Submitted by <span className="text-zinc-300">{video.editorName}</span> · {video.fileSize}</p>
-            <p className="text-xs text-zinc-600 ml-6">{new Date(video.submittedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+
+            {/* Action buttons: View / Download / Open Link */}
+            <div className="flex gap-2 flex-wrap">
+              {link && fileType === "video" && (
+                <button
+                  onClick={() => setShowPreview((p) => !p)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600/30 text-xs font-semibold transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5" />{showPreview ? "Hide Preview" : "Play Video"}
+                </button>
+              )}
+              {link && fileType === "image" && (
+                <button
+                  onClick={() => setShowPreview((p) => !p)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-400 hover:bg-blue-600/30 text-xs font-semibold transition-colors"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />{showPreview ? "Hide Image" : "View Image"}
+                </button>
+              )}
+              {link && (
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700 text-xs font-semibold transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />Open Link
+                </a>
+              )}
+              {link && (
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-700 text-xs font-semibold transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />Download
+                </button>
+              )}
+              {!link && (
+                <span className="text-xs text-zinc-600 italic">No link provided by editor</span>
+              )}
+            </div>
+
+            {/* Inline preview */}
+            {showPreview && link && fileType === "video" && (
+              <div className="rounded-xl overflow-hidden border border-zinc-700">
+                <video src={link} controls className="w-full max-h-64 bg-black" />
+              </div>
+            )}
+            {showPreview && link && fileType === "image" && (
+              <div className="rounded-xl overflow-hidden border border-zinc-700">
+                <img src={link} alt={video.fileName} className="w-full max-h-64 object-contain bg-zinc-900" />
+              </div>
+            )}
           </div>
 
           <div>

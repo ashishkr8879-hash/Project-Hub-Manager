@@ -17,3 +17,9 @@ id = "Vqs-d6W72EfcoPu9VNKd4"
 uri = "file://exports/divayshakati-data.json"
 type = "unspecified"
 title = "Divayshakati - Full Data Export (JSON)"
+
+[[outputs]]
+id = "oAxGboZjSEW6Wf2JZClKv"
+uri = "file://exports/divayshakati-hostinger.tar.gz"
+type = "unspecified"
+title = "Divayshakati Production Package (Hostinger ke liye)"

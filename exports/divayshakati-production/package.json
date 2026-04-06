@@ -1,0 +1,13 @@
+{
+  "name": "divayshakati-project-manager",
+  "version": "1.0.0",
+  "description": "Divayshakati Project Manager - Production Server",
+  "type": "module",
+  "main": "dist/index.mjs",
+  "scripts": {
+    "start": "node dist/index.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

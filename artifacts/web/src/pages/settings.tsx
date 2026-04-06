@@ -216,22 +216,22 @@ export default function Settings() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Profile header */}
-      <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-6">
-        <div className="flex items-center gap-5">
-          <img src={logoUrl} alt="Divayshakati" className="w-16 h-16 object-contain flex-shrink-0 drop-shadow-lg" />
+      <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-4 sm:p-6">
+        <div className="flex flex-wrap items-center gap-4">
+          <img src={logoUrl} alt="Divayshakati" className="w-14 h-14 sm:w-16 sm:h-16 object-contain flex-shrink-0 drop-shadow-lg" />
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-white">{profile?.name ?? "Admin"}</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-white">{profile?.name ?? "Admin"}</h1>
             <p className="text-sm text-amber-400 font-semibold">{profile?.businessName ?? "Divayshakati"}</p>
-            <div className="flex items-center flex-wrap gap-4 mt-1.5">
+            <div className="flex items-center flex-wrap gap-3 mt-1.5">
               {profile?.email && <span className="text-xs text-zinc-500 flex items-center gap-1"><Mail className="w-3 h-3" />{profile.email}</span>}
               {profile?.phone && <span className="text-xs text-zinc-500 flex items-center gap-1"><Phone className="w-3 h-3" />{profile.phone}</span>}
             </div>
           </div>
           <button
             onClick={() => setShowEditProfile(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0"
           >
-            <Edit2 className="w-3.5 h-3.5" />Edit Profile
+            <Edit2 className="w-3.5 h-3.5" /><span className="hidden sm:inline">Edit Profile</span><span className="sm:hidden">Edit</span>
           </button>
         </div>
       </div>
@@ -246,7 +246,7 @@ export default function Settings() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {statCards.map((s, i) => {
           const Icon = s.icon;
           return (

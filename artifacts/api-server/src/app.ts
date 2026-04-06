@@ -24,7 +24,7 @@ if (process.env.NODE_ENV === "production") {
     ? __dirname
     : path.dirname(new URL(import.meta.url).pathname);
   const publicDir = path.join(distDir, "public");
-  console.log("[INFO] Static files from:", publicDir);
+  console.log(`[INFO] PORT=${process.env.PORT ?? "3000(default)"} | Static files from: ${publicDir}`);
   app.use(express.static(publicDir));
   app.get("*", (_req, res) => {
     res.sendFile(path.join(publicDir, "index.html"));

@@ -23,3 +23,9 @@ id = "oAxGboZjSEW6Wf2JZClKv"
 uri = "file://exports/divayshakati-hostinger.tar.gz"
 type = "unspecified"
 title = "Divayshakati Production Package (Hostinger ke liye)"
+
+[[outputs]]
+id = "-r0NV3vlyb3WTo1PXqr78"
+uri = "file://exports/divayshakati-hostinger.zip"
+type = "unspecified"
+title = "Divayshakati Production ZIP (Hostinger ke liye)"

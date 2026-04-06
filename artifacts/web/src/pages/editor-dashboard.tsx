@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useGetEditorProfile, useListNotifications } from "@workspace/api-client-react";
-import { Link } from "wouter";
-import { Briefcase, CheckCircle2, Activity, Edit2, Bell, Clock, ChevronRight, Video } from "lucide-react";
+import { useGetEditorProfile, useListNotifications, useMarkNotificationsRead } from "@workspace/api-client-react";
+import { Link, useLocation } from "wouter";
+import { Briefcase, CheckCircle2, Activity, Edit2, Bell, Clock, ChevronRight, Video, ArrowRight } from "lucide-react";
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   pending:     { label: "Pending",     className: "bg-zinc-700/50 text-zinc-300" },
@@ -26,11 +26,21 @@ function daysLeft(deadline: string) {
 
 export default function EditorDashboard() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const editorId = (user as any)?.editorId ?? user?.id ?? "";
   const spec = (user as any)?.specialization ?? "Team Member";
 
   const { data: profile, isLoading } = useGetEditorProfile(editorId, { query: { refetchInterval: 30000 } });
-  const { data: notifications = [] } = useListNotifications(editorId, { query: { refetchInterval: 12000 } });
+  const { data: notifications = [], refetch: refetchNotifs } = useListNotifications(editorId, { query: { refetchInterval: 12000 } });
+  const markReadMut = useMarkNotificationsRead();
+
+  async function handleNotifClick(n: any) {
+    if (!n.read) {
+      await markReadMut.mutateAsync({ data: { userId: editorId, notifIds: [n.id] } as any });
+      refetchNotifs();
+    }
+    navigate("/editor/notifications");
+  }
 
   if (isLoading) return (
     <div className="flex items-center justify-center h-64">
@@ -114,20 +124,35 @@ export default function EditorDashboard() {
             </h2>
             <Link href="/editor/notifications" className="text-xs text-zinc-500 hover:text-white flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></Link>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {recentNotifs.length === 0 ? (
               <div className="text-center py-8 text-zinc-500 text-sm">No notifications</div>
             ) : recentNotifs.map((n) => {
               const color = NOTIF_COLORS[n.type] ?? "#6b7280";
               return (
-                <div key={n.id} className={`flex gap-3 p-3 rounded-xl ${!n.read ? "bg-zinc-800/60" : "bg-zinc-800/20"}`}>
-                  <div className="w-1 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                <button
+                  key={n.id}
+                  onClick={() => handleNotifClick(n)}
+                  className={`w-full flex gap-3 p-3 rounded-xl text-left transition-all duration-150 group
+                    hover:shadow-md active:opacity-75
+                    ${!n.read
+                      ? "bg-zinc-800/60 hover:bg-zinc-800"
+                      : "bg-zinc-800/20 hover:bg-zinc-800/50"
+                    }`}
+                >
+                  {/* Color strip */}
+                  <div className="w-1 rounded-full flex-shrink-0 transition-all group-hover:w-1.5" style={{ backgroundColor: color }} />
+                  {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-white">{n.title}</p>
+                    <p className={`text-xs font-semibold ${!n.read ? "text-white" : "text-zinc-300"}`}>{n.title}</p>
                     <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug truncate">{n.message}</p>
                   </div>
-                  {!n.read && <div className="w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0" style={{ backgroundColor: color }} />}
-                </div>
+                  {/* Right side: unread dot + arrow */}
+                  <div className="flex flex-col items-end justify-between gap-1 flex-shrink-0">
+                    {!n.read && <div className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ backgroundColor: color }} />}
+                    <ArrowRight className="w-3 h-3 text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
               );
             })}
           </div>

@@ -2,7 +2,6 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -33,12 +32,13 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
-// In production, serve the built React frontend from the public/ folder
+// In production, serve the built React frontend
 if (process.env.NODE_ENV === "production") {
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const publicDir = path.join(__dirname, "public");
+  // process.cwd() = project root where package.json is
+  const publicDir = path.join(process.cwd(), "dist", "public");
+  console.log("[INFO] Serving static files from:", publicDir);
   app.use(express.static(publicDir));
-  // Catch-all: send index.html for client-side routing (SPA)
+  // SPA fallback
   app.get("*", (_req, res) => {
     res.sendFile(path.join(publicDir, "index.html"));
   });

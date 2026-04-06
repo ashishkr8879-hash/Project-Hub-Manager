@@ -19,11 +19,8 @@ app.use("/api", router);
 
 // Production: serve the built React frontend
 if (process.env.NODE_ENV === "production") {
-  // __dirname is set by esbuild banner = directory of dist/index.mjs = dist/
-  const distDir = typeof __dirname !== "undefined"
-    ? __dirname
-    : path.dirname(new URL(import.meta.url).pathname);
-  const publicDir = path.join(distDir, "public");
+  // In CJS bundle, __dirname = directory of dist/index.js = dist/
+  const publicDir = path.join(__dirname, "public");
   console.log(`[INFO] PORT=${process.env.PORT ?? "3000(default)"} | Static files from: ${publicDir}`);
   app.use(express.static(publicDir));
   app.get("*", (_req, res) => {

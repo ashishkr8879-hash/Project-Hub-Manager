@@ -82,21 +82,21 @@ function ClientDetailModal({ client, onClose }: { client: Client; onClose: () =>
           <div className="bg-yellow-500/8 border border-yellow-500/25 rounded-xl p-4 space-y-2.5">
             <div className="text-xs font-bold text-yellow-400 uppercase tracking-wider mb-3">Financial Summary</div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-zinc-900/50 rounded-xl p-3 text-center">
-                <div className="text-[10px] text-zinc-500 mb-1">Total Value</div>
-                <div className="text-sm font-bold text-white">{fmt(totalValue)}</div>
+              <div className="rounded-xl p-3 text-center" style={{ backgroundColor: 'rgba(13,63,122,0.10)' }}>
+                <div className="text-[10px] font-semibold mb-1" style={{ color: '#0d3f7a' }}>Total Value</div>
+                <div className="text-sm font-bold" style={{ color: '#0d3f7a' }}>{fmt(totalValue)}</div>
               </div>
               <div className="bg-emerald-500/10 rounded-xl p-3 text-center">
-                <div className="text-[10px] text-emerald-500 mb-1">Received</div>
-                <div className="text-sm font-bold text-emerald-400">{fmt(totalPaid)}</div>
+                <div className="text-[10px] text-emerald-600 font-semibold mb-1">Received</div>
+                <div className="text-sm font-bold text-emerald-600">{fmt(totalPaid)}</div>
               </div>
               <div className="bg-red-500/10 rounded-xl p-3 text-center">
-                <div className="text-[10px] text-red-500 mb-1">Pending</div>
-                <div className="text-sm font-bold text-red-400">{fmt(totalPending)}</div>
+                <div className="text-[10px] text-red-500 font-semibold mb-1">Pending</div>
+                <div className="text-sm font-bold text-red-500">{fmt(totalPending)}</div>
               </div>
               <div className="bg-orange-500/10 rounded-xl p-3 text-center">
-                <div className="text-[10px] text-orange-500 mb-1">Model Cost</div>
-                <div className="text-sm font-bold text-orange-400">{fmt(totalModelCost)}</div>
+                <div className="text-[10px] text-orange-500 font-semibold mb-1">Model Cost</div>
+                <div className="text-sm font-bold text-orange-500">{fmt(totalModelCost)}</div>
               </div>
             </div>
             {/* Payment bar */}

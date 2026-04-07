@@ -255,7 +255,7 @@ function ProjectDetailModal({ project, onClose, editors }: { project: Project; o
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="bg-emerald-500/10 rounded-xl p-2.5"><div className="text-[10px] text-emerald-400 mb-1">Received</div><div className="text-sm font-bold text-emerald-400">{fmt(project.paidAmount)}</div></div>
                         <div className="bg-red-500/10 rounded-xl p-2.5"><div className="text-[10px] text-red-400 mb-1">Pending</div><div className="text-sm font-bold text-red-400">{fmt(pending)}</div></div>
-                        <div className="bg-zinc-800 rounded-xl p-2.5"><div className="text-[10px] text-zinc-400 mb-1">Total</div><div className="text-sm font-bold text-white">{fmt(project.totalValue)}</div></div>
+                        <div className="rounded-xl p-2.5" style={{ backgroundColor: 'rgba(13,63,122,0.10)' }}><div className="text-[10px] font-semibold mb-1" style={{ color: '#0d3f7a' }}>Total</div><div className="text-sm font-bold" style={{ color: '#0d3f7a' }}>{fmt(project.totalValue)}</div></div>
                       </div>
                       <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
                         <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${project.totalValue > 0 ? Math.min((project.paidAmount / project.totalValue) * 100, 100) : 0}%` }} />

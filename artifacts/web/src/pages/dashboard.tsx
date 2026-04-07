@@ -99,8 +99,8 @@ export default function Dashboard() {
               const initials = e.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
               const hue = (e.id.charCodeAt(1) * 47) % 360;
               return (
-                <div key={e.id} className="w-8 h-8 rounded-full border-2 border-zinc-900 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-                  style={{ backgroundColor: `hsl(${hue},60%,45%)`, zIndex: 5 - idx }}>
+                <div key={e.id} className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                  style={{ backgroundColor: `hsl(${hue},60%,45%)`, zIndex: 5 - idx, color: 'white' }}>
                   {initials}
                 </div>
               );

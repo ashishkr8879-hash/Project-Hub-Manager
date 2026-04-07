@@ -119,7 +119,7 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50 flex">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex">
 
       {/* ── Desktop sidebar (md+) ─────────────────────────────────── */}
       <aside className="hidden md:flex w-60 flex-col fixed inset-y-0 left-0 z-20 border-r border-slate-200 shadow-sm bg-white">

@@ -57,7 +57,7 @@ function ClientDetailModal({ client, onClose }: { client: Client; onClose: () =>
 
         {/* Profile Hero */}
         <div className="p-6 flex items-center gap-4 border-b border-zinc-800/60">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0" style={{ backgroundColor: `hsl(${hue},55%,40%)` }}>{initials}</div>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold flex-shrink-0" style={{ backgroundColor: `hsl(${hue},55%,40%)`, color: 'white' }}>{initials}</div>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-bold text-white">{client.name}</h2>
             <p className="text-xs text-zinc-500">{client.businessType} · {client.city}</p>
@@ -155,7 +155,7 @@ function ClientCard({ client, onOpen }: { client: Client; onOpen: () => void }) 
   return (
     <div onClick={onOpen} className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-4 cursor-pointer hover:border-zinc-700 hover:bg-zinc-800/40 transition-all duration-150 space-y-3">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ backgroundColor: `hsl(${hue},55%,40%)` }}>{initials}</div>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ backgroundColor: `hsl(${hue},55%,40%)`, color: 'white' }}>{initials}</div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">{client.name}</p>
           <p className="text-xs text-zinc-500 truncate">{client.businessType}</p>

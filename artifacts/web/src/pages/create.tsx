@@ -269,7 +269,7 @@ export default function Create() {
                     const hue = (c.id.charCodeAt(0) * 53) % 360;
                     return (
                       <button key={c.id} onClick={() => setSelectedClientId(c.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${selectedClientId === c.id ? "border-blue-500 bg-blue-500/10" : "border-zinc-800/60 bg-zinc-900 hover:border-zinc-700"}`}>
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: `hsl(${hue},55%,40%)` }}>{initials}</div>
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ backgroundColor: `hsl(${hue},55%,40%)`, color: 'white' }}>{initials}</div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-white truncate">{c.name}</p>
                           <p className="text-xs text-zinc-500">{c.businessType} · {c.phone}</p>

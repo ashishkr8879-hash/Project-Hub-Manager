@@ -308,7 +308,7 @@ export default function Settings() {
                   const hue = (c.id.charCodeAt(0) * 53) % 360;
                   return (
                     <div key={c.id} className="flex items-center gap-3 p-3 bg-zinc-900 border border-zinc-800/60 rounded-xl">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: `hsl(${hue},55%,40%)` }}>{initials}</div>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style={{ backgroundColor: `hsl(${hue},55%,40%)`, color: 'white' }}>{initials}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-white truncate">{c.name}</p>
                         <p className="text-xs text-zinc-500">{c.businessType} · {c.phone}</p>

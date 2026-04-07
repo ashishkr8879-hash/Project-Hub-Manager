@@ -85,7 +85,7 @@ export function MonthCalendar({ calendarData, accentColor = "#3b82f6" }: Props) 
               <div
                 className="w-7 h-7 flex items-center justify-center rounded-full text-xs font-medium transition-colors"
                 style={isToday ? { backgroundColor: accentColor, color: "#fff" } : {
-                  color: isSelected ? accentColor : "#e4e4e7",
+                  color: isSelected ? accentColor : "#475569",
                   fontWeight: isSelected ? "700" : "400",
                 }}
               >

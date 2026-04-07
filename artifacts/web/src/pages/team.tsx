@@ -177,7 +177,7 @@ function EditorDetailModal({ editor, onClose }: { editor: Editor; onClose: () =>
                 <div className="flex justify-between items-center"><span className="text-sm text-zinc-400">Total Revenue</span><span className="text-sm font-semibold text-white">{fmt(totalRevenue)}</span></div>
                 <div className="flex justify-between items-center"><span className="text-sm text-zinc-400 flex items-center gap-1"><Minus className="w-3 h-3 text-red-400" />Monthly Salary</span><span className="text-sm font-semibold text-red-400">− {fmt(salary)}</span></div>
                 <div className="h-px bg-yellow-500/30" />
-                <div className="flex justify-between items-center"><span className="text-sm font-bold text-white">Net Profit</span><span className="text-base font-bold text-emerald-400">{fmt(totalRevenue - salary)}</span></div>
+                <div className="flex justify-between items-center"><span className="text-sm font-bold" style={{ color: '#1e293b' }}>Net Profit</span><span className="text-base font-bold text-emerald-400">{fmt(totalRevenue - salary)}</span></div>
               </div>
             </>
           )}

@@ -231,7 +231,7 @@ function ProjectDetailModal({ project, onClose, editors }: { project: Project; o
                     <div className="flex justify-between items-center"><span className="text-sm text-zinc-400 flex items-center gap-1"><Minus className="w-3 h-3 text-red-400" />Model Cost</span><span className="text-sm font-semibold text-red-400">− {fmt(project.modelCost)}</span></div>
                     <div className="flex justify-between items-center"><span className="text-sm text-zinc-400 flex items-center gap-1"><Minus className="w-3 h-3 text-orange-400" />Editor Cost</span><span className="text-sm font-semibold text-orange-400">− {fmt(project.editorCost)}</span></div>
                     <div className="h-px bg-yellow-500/30" />
-                    <div className="flex justify-between items-center"><span className="text-sm font-bold text-white">Net Profit</span><span className="text-base font-bold text-emerald-400">{fmt(project.totalValue - project.modelCost - project.editorCost)}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm font-bold" style={{ color: '#1e293b' }}>Net Profit</span><span className="text-base font-bold text-emerald-400">{fmt(project.totalValue - project.modelCost - project.editorCost)}</span></div>
                   </>
                 )}
               </div>

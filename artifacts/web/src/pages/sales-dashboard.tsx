@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useGetSalesPersonStats } from "@workspace/api-client-react";
 import { TrendingUp, Users, Briefcase, CheckCircle, Clock, IndianRupee, Target } from "lucide-react";
+import { SalesPerformanceCalendar } from "@/components/sales-performance-calendar";
 
 const BRAND_BLUE  = "#0d3f7a";
 const SALES_COLOR = "#059669";
@@ -157,6 +158,9 @@ export default function SalesDashboard() {
           <p className="text-xs text-slate-400 mt-1">Clients assigned to you by the admin will appear here</p>
         </div>
       )}
+
+      {/* Performance Calendar */}
+      <SalesPerformanceCalendar clients={data.clients} />
     </div>
   );
 }

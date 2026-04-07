@@ -239,10 +239,10 @@ export default function Settings() {
       {/* Revenue overview */}
       <div className="bg-yellow-500/8 border border-yellow-500/25 rounded-2xl p-5 space-y-3">
         <div className="text-xs font-bold text-yellow-400 uppercase tracking-wider">Revenue Overview</div>
-        <div className="flex justify-between items-center"><span className="text-sm text-zinc-400">Total Revenue</span><span className="text-base font-bold text-white">{fmt(totalRevenue)}</span></div>
+        <div className="flex justify-between items-center"><span className="text-sm text-zinc-400">Total Revenue</span><span className="text-base font-bold" style={{ color: '#1e293b' }}>{fmt(totalRevenue)}</span></div>
         <div className="flex justify-between items-center"><span className="text-sm text-zinc-400 flex items-center gap-1"><Minus className="w-3 h-3 text-red-400" />Model Costs</span><span className="text-sm font-semibold text-red-400">− {fmt(totalModelCosts)}</span></div>
         <div className="h-px bg-yellow-500/30" />
-        <div className="flex justify-between items-center"><span className="text-sm font-bold text-white">Net Revenue</span><span className="text-xl font-bold text-emerald-400">{fmt(netRevenue)}</span></div>
+        <div className="flex justify-between items-center"><span className="text-sm font-bold" style={{ color: '#1e293b' }}>Net Revenue</span><span className="text-xl font-bold text-emerald-400">{fmt(netRevenue)}</span></div>
       </div>
 
       {/* Stats grid */}

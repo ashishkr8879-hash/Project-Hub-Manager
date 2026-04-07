@@ -3,8 +3,7 @@ import { useLocation } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { useTheme } from "@/hooks/use-theme";
-import { User, Lock, Eye, EyeOff, Loader2, Sun, Moon } from "lucide-react";
+import { User, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 
 const ROLES = ["Video Editor", "Graphic Designer", "Ads Setup", "Website Development", "Social Media Manager"];
 const SIDEBAR_BG = "#0d3f7a";
@@ -15,7 +14,6 @@ export default function Login() {
   const { login } = useAuth();
   const { toast } = useToast();
   const loginMutation = useLogin();
-  const { isDark, toggle } = useTheme();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -58,21 +56,6 @@ export default function Login() {
         <div className="absolute top-[30%] left-[-60px] w-[300px] h-[300px] rounded-full opacity-10"
           style={{ background: `radial-gradient(circle, #3b9ff5 0%, transparent 70%)` }} />
       </div>
-
-      {/* Theme toggle — top right */}
-      <button
-        onClick={toggle}
-        title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-        className="absolute top-4 right-4 z-10 w-9 h-9 rounded-xl flex items-center justify-center transition-all border"
-        style={{
-          backgroundColor: "rgba(13,63,122,0.08)",
-          borderColor: "rgba(13,63,122,0.15)",
-        }}
-      >
-        {isDark
-          ? <Sun className="w-4 h-4 text-amber-500" />
-          : <Moon className="w-4 h-4" style={{ color: SIDEBAR_BG }} />}
-      </button>
 
       {/* Center card */}
       <div

@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { useTheme } from "@/hooks/use-theme";
 import { useListNotifications } from "@workspace/api-client-react";
-import { LayoutDashboard, Briefcase, Bell, User, LogOut, Sun, Moon, Menu, X } from "lucide-react";
+import { LayoutDashboard, Briefcase, Bell, User, LogOut, Menu, X } from "lucide-react";
 
 interface EditorLayoutProps { children: React.ReactNode; }
 
@@ -22,14 +21,12 @@ const SPEC_COLORS: Record<string, string> = {
   "Ads Setup": "#f97316",
 };
 
-const SIDEBAR_BG   = "#0d3f7a";
-const SIDEBAR_DARK = "#092e5c";
-const GOLD         = "#e8ab15";
+const BRAND_BLUE = "#0d3f7a";
+const GOLD       = "#e8ab15";
 
 export default function EditorLayout({ children }: EditorLayoutProps) {
   const [location] = useLocation();
   const { logout, user } = useAuth();
-  const { isDark, toggle } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const editorId  = (user as any)?.editorId ?? user?.id ?? "";
@@ -53,9 +50,9 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
               href={item.href}
               onClick={onNav}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${
-                isActive ? "font-semibold text-white" : "text-white/65 hover:text-white hover:bg-white/10"
+                isActive ? "font-semibold" : "text-slate-500 hover:text-slate-800 hover:bg-blue-50"
               }`}
-              style={isActive ? { backgroundColor: specColor + "35" } : {}}
+              style={isActive ? { backgroundColor: specColor + "15", color: specColor } : {}}
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm flex-1">{item.label}</span>
@@ -74,21 +71,21 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
 
   function SidebarContent({ onNav }: { onNav?: () => void }) {
     return (
-      <div className="flex flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
+      <div className="flex flex-col h-full bg-white">
         {/* Brand */}
-        <div className="h-20 flex items-center px-4 border-b border-white/10 flex-shrink-0">
+        <div className="h-20 flex items-center px-4 border-b border-slate-100 flex-shrink-0">
           <div className="flex items-center gap-3 w-full">
-            <img src={logoUrl} alt="Divayshakati" className="w-12 h-12 object-contain flex-shrink-0 drop-shadow-lg" />
+            <img src={logoUrl} alt="Divayshakati" className="w-12 h-12 object-contain flex-shrink-0 drop-shadow" />
             <div>
-              <div className="font-bold text-sm tracking-tight text-white leading-none">Divayshakati</div>
-              <div className="text-[10px] mt-0.5 font-medium tracking-wide" style={{ color: GOLD + "cc" }}>Team Panel</div>
+              <div className="font-bold text-sm tracking-tight leading-none" style={{ color: BRAND_BLUE }}>Divayshakati</div>
+              <div className="text-[10px] mt-0.5 font-semibold tracking-widest uppercase" style={{ color: GOLD }}>Team Panel</div>
             </div>
           </div>
         </div>
 
         {/* Spec badge */}
-        <div className="mx-3 mt-3 mb-1 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-white/10"
-          style={{ backgroundColor: specColor + "20" }}>
+        <div className="mx-3 mt-3 mb-1 px-3 py-1.5 rounded-lg flex items-center gap-2 border"
+          style={{ backgroundColor: specColor + "10", borderColor: specColor + "25" }}>
           <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: specColor }} />
           <span className="text-xs font-semibold" style={{ color: specColor }}>{spec}</span>
         </div>
@@ -99,30 +96,20 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
         </nav>
 
         {/* User + logout */}
-        <div className="p-3 border-t border-white/10 flex-shrink-0" style={{ backgroundColor: SIDEBAR_DARK }}>
-          <div className="flex items-center gap-2.5 px-3 py-2 mb-1 rounded-xl border border-white/10"
-            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+        <div className="p-3 border-t border-slate-100 flex-shrink-0 bg-slate-50">
+          <div className="flex items-center gap-2.5 px-3 py-2 mb-1 rounded-xl bg-white border border-slate-200">
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 border"
-              style={{ backgroundColor: specColor + "30", color: specColor, borderColor: specColor + "50" }}>
+              style={{ backgroundColor: specColor + "15", color: specColor, borderColor: specColor + "30" }}>
               {user?.name?.charAt(0) || "T"}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-xs font-semibold text-white truncate">{user?.name || "Team Member"}</p>
-              <p className="text-[10px] text-white/45 truncate">{spec}</p>
+              <p className="text-xs font-semibold truncate" style={{ color: BRAND_BLUE }}>{user?.name || "Team Member"}</p>
+              <p className="text-[10px] text-slate-400 truncate">{spec}</p>
             </div>
-            <button
-              onClick={toggle}
-              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-white/10 flex-shrink-0"
-            >
-              {isDark
-                ? <Sun className="w-3.5 h-3.5 text-amber-400" />
-                : <Moon className="w-3.5 h-3.5 text-white/70" />}
-            </button>
           </div>
           <button
             onClick={logout}
-            className="w-full flex items-center gap-2 px-3 py-2 text-white/40 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors text-sm"
+            className="w-full flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors text-sm"
           >
             <LogOut className="w-3.5 h-3.5" />Sign Out
           </button>
@@ -135,19 +122,18 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
     <div className="min-h-screen bg-zinc-950 text-zinc-50 flex">
 
       {/* ── Desktop sidebar (md+) ─────────────────────────────────── */}
-      <aside className="hidden md:flex w-60 flex-col fixed inset-y-0 left-0 z-20 shadow-xl"
-        style={{ backgroundColor: SIDEBAR_BG }}>
+      <aside className="hidden md:flex w-60 flex-col fixed inset-y-0 left-0 z-20 border-r border-slate-200 shadow-sm bg-white">
         <SidebarContent />
       </aside>
 
       {/* ── Mobile overlay sidebar ───────────────────────────────── */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-72 flex flex-col shadow-2xl" style={{ backgroundColor: SIDEBAR_BG }}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-72 flex flex-col shadow-2xl bg-white">
             <button
               onClick={() => setSidebarOpen(false)}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -156,7 +142,7 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
         </div>
       )}
 
-      {/* ── Mobile top bar (light) ───────────────────────────────── */}
+      {/* ── Mobile top bar ───────────────────────────────────────── */}
       <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 bg-white border-b border-slate-200 flex items-center px-4 gap-3 shadow-sm">
         <button
           onClick={() => setSidebarOpen(true)}
@@ -166,27 +152,19 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
         </button>
         <div className="flex items-center gap-2.5 flex-1">
           <img src={logoUrl} alt="Logo" className="w-7 h-7 object-contain" />
-          <span className="font-bold text-sm" style={{ color: SIDEBAR_BG }}>Divayshakati</span>
+          <span className="font-bold text-sm" style={{ color: BRAND_BLUE }}>Divayshakati</span>
         </div>
-        <div className="flex items-center gap-2">
-          {unread > 0 && (
-            <Link href="/editor/notifications">
-              <div className="relative w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors">
-                <Bell className="w-4.5 h-4.5 text-slate-500" />
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: specColor }}>
-                  {unread > 9 ? "9+" : unread}
-                </span>
-              </div>
-            </Link>
-          )}
-          <button
-            onClick={toggle}
-            className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-          >
-            {isDark ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4" style={{ color: SIDEBAR_BG }} />}
-          </button>
-        </div>
+        {unread > 0 && (
+          <Link href="/editor/notifications">
+            <div className="relative w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors">
+              <Bell className="w-4.5 h-4.5 text-slate-500" />
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[9px] font-bold rounded-full flex items-center justify-center"
+                style={{ backgroundColor: specColor }}>
+                {unread > 9 ? "9+" : unread}
+              </span>
+            </div>
+          </Link>
+        )}
       </header>
 
       {/* ── Main content ─────────────────────────────────────────── */}
@@ -196,8 +174,8 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
         </div>
       </main>
 
-      {/* ── Mobile bottom nav (light) ─────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 flex items-stretch shadow-[0_-2px_12px_rgba(13,63,122,0.08)]">
+      {/* ── Mobile bottom nav ─────────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 flex items-stretch shadow-[0_-2px_12px_rgba(13,63,122,0.06)]">
         {navItems.map((item) => {
           const Icon      = item.icon;
           const isActive  = location === item.href || (item.href !== "/editor" && location.startsWith(item.href));

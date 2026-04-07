@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
-import { useListClients, useCreateClient, useDeleteClient, useGetClientProjects } from "@workspace/api-client-react";
+import { useListClients, useCreateClient, useDeleteClient, useGetClientProjects, useListSalesTeam, useAssignClientSalesPerson } from "@workspace/api-client-react";
 import type { Client } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, X, Plus, Trash2, Phone, Mail, MapPin, Building2, DollarSign, ChevronRight, AlertCircle, Minus } from "lucide-react";
+import { Search, X, Plus, Trash2, Phone, Mail, MapPin, Building2, DollarSign, ChevronRight, AlertCircle, Minus, TrendingUp } from "lucide-react";
+
+const SALES_COLOR = "#059669";
 
 const fmt = (n: number) => "₹" + n.toLocaleString("en-IN");
 
@@ -20,6 +22,17 @@ function ClientDetailModal({ client, onClose }: { client: Client; onClose: () =>
   const [showDelete, setShowDelete] = useState(false);
   const [editingPayment, setEditingPayment] = useState<string | null>(null);
   const [payAmt, setPayAmt] = useState<number>(0);
+  const { data: salesTeam = [] } = useListSalesTeam();
+  const assignMut = useAssignClientSalesPerson({
+    mutation: {
+      onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/clients"] }); },
+    },
+  });
+  const [assigningId, setAssigningId] = useState<string | null | undefined>(client.salesPersonId);
+  const handleAssign = (salesPersonId: string | null) => {
+    setAssigningId(salesPersonId);
+    assignMut.mutate({ id: client.id, data: { salesPersonId } });
+  };
 
   const totalValue = clientProjects.reduce((s, p) => s + p.totalValue, 0);
   const totalPaid = clientProjects.reduce((s, p) => s + p.paidAmount, 0);
@@ -76,6 +89,53 @@ function ClientDetailModal({ client, onClose }: { client: Client; onClose: () =>
             {client.phone && <a href={`tel:${client.phone}`} className="flex items-center gap-2.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"><Phone className="w-3.5 h-3.5 flex-shrink-0" />{client.phone}</a>}
             {client.email && <div className="flex items-center gap-2.5 text-sm text-zinc-300"><Mail className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />{client.email}</div>}
             {client.city && <div className="flex items-center gap-2.5 text-sm text-zinc-300"><MapPin className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />{client.city}</div>}
+          </div>
+
+          {/* Sales Executive Assignment */}
+          <div className="bg-emerald-500/8 border border-emerald-500/25 rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-3.5 h-3.5" style={{ color: SALES_COLOR }} />
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: SALES_COLOR }}>Sales Executive</span>
+            </div>
+            {assigningId ? (
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                  style={{ backgroundColor: SALES_COLOR }}>
+                  {(salesTeam.find((s) => s.id === assigningId)?.name || "?").charAt(0)}
+                </div>
+                <span className="text-sm font-medium" style={{ color: SALES_COLOR }}>
+                  {salesTeam.find((s) => s.id === assigningId)?.name || client.salesPersonName || "Assigned"}
+                </span>
+                <button onClick={() => handleAssign(null)}
+                  className="ml-auto text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-0.5 rounded-lg hover:bg-red-500/10">
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-500">Not assigned to any sales executive</p>
+            )}
+            {salesTeam.length > 0 && (
+              <div>
+                <p className="text-[10px] text-zinc-500 mb-1.5">Assign to:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {salesTeam.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => handleAssign(s.id)}
+                      disabled={assignMut.isPending}
+                      className={`text-xs px-2.5 py-1 rounded-lg border transition-colors disabled:opacity-50 ${
+                        assigningId === s.id
+                          ? "text-white border-emerald-600"
+                          : "text-zinc-300 border-zinc-700 hover:border-emerald-500 hover:text-emerald-400"
+                      }`}
+                      style={assigningId === s.id ? { backgroundColor: SALES_COLOR, borderColor: SALES_COLOR } : {}}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Financial Summary */}
@@ -166,8 +226,17 @@ function ClientCard({ client, onOpen }: { client: Client; onOpen: () => void }) 
         {client.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{client.phone}</span>}
         {client.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{client.city}</span>}
       </div>
-      <div className="text-[10px] text-zinc-600">
-        Joined {new Date(client.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-zinc-600">
+          Joined {new Date(client.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+        </span>
+        {client.salesPersonName && (
+          <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
+            style={{ backgroundColor: SALES_COLOR + "20", color: SALES_COLOR }}>
+            <TrendingUp className="w-2.5 h-2.5" />
+            {client.salesPersonName.split(" ")[0]}
+          </span>
+        )}
       </div>
     </div>
   );

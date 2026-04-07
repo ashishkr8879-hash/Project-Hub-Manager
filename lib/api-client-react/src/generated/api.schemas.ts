@@ -24,6 +24,7 @@ export type LoginResponseRole =
 export const LoginResponseRole = {
   admin: "admin",
   editor: "editor",
+  sales: "sales",
 } as const;
 
 export interface LoginResponse {
@@ -32,6 +33,7 @@ export interface LoginResponse {
   role: LoginResponseRole;
   editorId?: string;
   specialization?: string;
+  salesId?: string;
 }
 
 export interface Client {
@@ -42,6 +44,47 @@ export interface Client {
   businessType: string;
   city: string;
   createdAt: string;
+  salesPersonId?: string;
+  salesPersonName?: string;
+}
+
+export interface SalesPerson {
+  id: string;
+  name: string;
+  email: string;
+  username: string;
+  phone: string;
+  joinedAt: string;
+  monthlySalary: number;
+  target: number;
+}
+
+export interface CreateSalesPersonBody {
+  name: string;
+  username: string;
+  password: string;
+  email?: string;
+  phone: string;
+  monthlySalary?: number;
+  target?: number;
+}
+
+export interface SalesPersonStats {
+  salesperson: SalesPerson;
+  clientsClosed: number;
+  totalRevenue: number;
+  closedRevenue: number;
+  activeRevenue: number;
+  activeProjects: number;
+  completedProjects: number;
+  pendingProjects: number;
+  totalProjects: number;
+  targetAchieved: number;
+  clients: (Client & { projects: Project[] })[];
+}
+
+export interface AssignSalesBody {
+  salesPersonId: string | null;
 }
 
 export interface CreateClientBody {

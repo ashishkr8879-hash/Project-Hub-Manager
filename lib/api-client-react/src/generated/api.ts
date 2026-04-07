@@ -20,11 +20,13 @@ import type {
   AddReferenceBody,
   AdminProfile,
   AppNotification,
+  AssignSalesBody,
   Client,
   ClientProjectsResponse,
   CreateClientBody,
   CreateEditorBody,
   CreateProjectBody,
+  CreateSalesPersonBody,
   DashboardStats,
   Editor,
   EditorFull,
@@ -41,6 +43,8 @@ import type {
   ProjectReference,
   ReviewVideoBody,
   RevisionBody,
+  SalesPerson,
+  SalesPersonStats,
   SendMessageBody,
   SubmitVideoBody,
   SuccessResponse,
@@ -2933,3 +2937,109 @@ export const useMarkNotificationsRead = <
 > => {
   return useMutation(getMarkNotificationsReadMutationOptions(options));
 };
+
+// ─── Sales Team ───────────────────────────────────────────────────────────────
+
+export const getListSalesTeamUrl = () => `/api/sales-team`;
+
+export const listSalesTeam = async (options?: RequestInit): Promise<SalesPerson[]> =>
+  customFetch<SalesPerson[]>(getListSalesTeamUrl(), { ...options, method: "GET" });
+
+export const getListSalesTeamQueryKey = () => [`/api/sales-team`] as const;
+
+export const useListSalesTeam = <TData = Awaited<ReturnType<typeof listSalesTeam>>, TError = ErrorType<unknown>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof listSalesTeam>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getListSalesTeamQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listSalesTeam>>> = ({ signal }) =>
+    listSalesTeam({ signal, ...requestOptions });
+  return useQuery({ queryKey, queryFn, ...queryOptions }) as UseQueryResult<TData, TError>;
+};
+
+export const getSalesPersonStatsUrl = (id: string) => `/api/sales-team/${id}/stats`;
+
+export const getSalesPersonStats = async (id: string, options?: RequestInit): Promise<SalesPersonStats> =>
+  customFetch<SalesPersonStats>(getSalesPersonStatsUrl(id), { ...options, method: "GET" });
+
+export const getSalesPersonStatsQueryKey = (id: string) => [`/api/sales-team/${id}/stats`] as const;
+
+export const useGetSalesPersonStats = <TData = Awaited<ReturnType<typeof getSalesPersonStats>>, TError = ErrorType<unknown>>(
+  id: string,
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getSalesPersonStats>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getSalesPersonStatsQueryKey(id);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSalesPersonStats>>> = ({ signal }) =>
+    getSalesPersonStats(id, { signal, ...requestOptions });
+  return useQuery({ queryKey, queryFn, enabled: !!id, ...queryOptions }) as UseQueryResult<TData, TError>;
+};
+
+export const createSalesPerson = async (data: BodyType<CreateSalesPersonBody>, options?: RequestInit): Promise<SalesPerson> =>
+  customFetch<SalesPerson>(`/api/sales-team`, { ...options, method: "POST", headers: { "Content-Type": "application/json", ...options?.headers }, body: JSON.stringify(data) });
+
+export const getCreateSalesPersonMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof createSalesPerson>>, TError, { data: BodyType<CreateSalesPersonBody> }, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationOptions<Awaited<ReturnType<typeof createSalesPerson>>, TError, { data: BodyType<CreateSalesPersonBody> }, TContext> => {
+  const mutationKey = ["createSalesPerson"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSalesPerson>>, { data: BodyType<CreateSalesPersonBody> }> = (props) => {
+    const { data } = props ?? {};
+    return createSalesPerson(data, requestOptions);
+  };
+  return { mutationFn, ...mutationOptions };
+};
+
+export const useCreateSalesPerson = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof createSalesPerson>>, TError, { data: BodyType<CreateSalesPersonBody> }, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationResult<Awaited<ReturnType<typeof createSalesPerson>>, TError, { data: BodyType<CreateSalesPersonBody> }, TContext> =>
+  useMutation(getCreateSalesPersonMutationOptions(options));
+
+export const deleteSalesPerson = async (id: string, options?: RequestInit): Promise<SuccessResponse> =>
+  customFetch<SuccessResponse>(`/api/sales-team/${id}`, { ...options, method: "DELETE" });
+
+export const getDeleteSalesPersonMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteSalesPerson>>, TError, { id: string }, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSalesPerson>>, TError, { id: string }, TContext> => {
+  const mutationKey = ["deleteSalesPerson"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSalesPerson>>, { id: string }> = (props) => {
+    const { id } = props ?? {};
+    return deleteSalesPerson(id, requestOptions);
+  };
+  return { mutationFn, ...mutationOptions };
+};
+
+export const useDeleteSalesPerson = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteSalesPerson>>, TError, { id: string }, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationResult<Awaited<ReturnType<typeof deleteSalesPerson>>, TError, { id: string }, TContext> =>
+  useMutation(getDeleteSalesPersonMutationOptions(options));
+
+export const assignClientSalesPerson = async (id: string, data: BodyType<AssignSalesBody>, options?: RequestInit): Promise<Client> =>
+  customFetch<Client>(`/api/clients/${id}/assign-sales`, { ...options, method: "PATCH", headers: { "Content-Type": "application/json", ...options?.headers }, body: JSON.stringify(data) });
+
+export const getAssignClientSalesPersonMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof assignClientSalesPerson>>, TError, { id: string; data: BodyType<AssignSalesBody> }, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationOptions<Awaited<ReturnType<typeof assignClientSalesPerson>>, TError, { id: string; data: BodyType<AssignSalesBody> }, TContext> => {
+  const mutationKey = ["assignClientSalesPerson"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignClientSalesPerson>>, { id: string; data: BodyType<AssignSalesBody> }> = (props) => {
+    const { id, data } = props ?? {};
+    return assignClientSalesPerson(id, data, requestOptions);
+  };
+  return { mutationFn, ...mutationOptions };
+};
+
+export const useAssignClientSalesPerson = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof assignClientSalesPerson>>, TError, { id: string; data: BodyType<AssignSalesBody> }, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationResult<Awaited<ReturnType<typeof assignClientSalesPerson>>, TError, { id: string; data: BodyType<AssignSalesBody> }, TContext> =>
+  useMutation(getAssignClientSalesPersonMutationOptions(options));

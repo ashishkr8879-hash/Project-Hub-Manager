@@ -13,6 +13,12 @@ interface Editor {
 interface Client {
   id: string; name: string; phone: string; email: string;
   businessType: string; city: string; createdAt: string;
+  salesPersonId?: string; salesPersonName?: string;
+}
+
+interface SalesPerson {
+  id: string; name: string; email: string; password: string; username: string;
+  phone: string; joinedAt: string; monthlySalary: number; target: number;
 }
 
 interface ProjectReference {
@@ -92,6 +98,17 @@ const clients: Client[] = [
 ];
 let clientIdCounter = clients.length + 1;
 
+let salesIdCounter = 3;
+const salesTeam: SalesPerson[] = [
+  { id: "s1", name: "Rahul Sharma", username: "rahul", email: "rahul@divayshakati.com", password: "rahul123", phone: "+91 98200 11111", joinedAt: "2024-01-01", monthlySalary: 20000, target: 5 },
+  { id: "s2", name: "Priya Patel",  username: "priya", email: "priya@divayshakati.com",  password: "priya123",  phone: "+91 98200 22222", joinedAt: "2024-03-01", monthlySalary: 18000, target: 4 },
+];
+// assign some demo clients to sales team
+(clients[0] as Client).salesPersonId = "s1"; (clients[0] as Client).salesPersonName = "Rahul Sharma";
+(clients[1] as Client).salesPersonId = "s1"; (clients[1] as Client).salesPersonName = "Rahul Sharma";
+(clients[2] as Client).salesPersonId = "s2"; (clients[2] as Client).salesPersonName = "Priya Patel";
+(clients[3] as Client).salesPersonId = "s2"; (clients[3] as Client).salesPersonName = "Priya Patel";
+
 const projects: Project[] = [
   { id: "p1", clientId: "c1", clientName: "TechCorp Inc",   clientPhone: "+91 99001 11111", clientEmail: "contact@techcorp.in",   projectName: "Brand Video Series",      projectType: "branded",      totalValue: 12000, modelCost: 0,    editorCost: 400,  totalDeliverables: 6, editorId: "e1", editorName: "Alice Johnson", editorPhone: "+91 98100 11111", status: "in_progress", completedDeliverables: 3, paidAmount: 6000,  createdAt: new Date(Date.now() - 7*86400000).toISOString(), deadline: new Date(Date.now() + 14*86400000).toISOString(), notes: "Focus on product close-ups. Color grade warm.", revisionRequested: true },
   { id: "p2", clientId: "c2", clientName: "Sunrise Events", clientPhone: "+91 99001 22222", clientEmail: "hello@sunriseevents.in", projectName: "Wedding Highlight Reel",  projectType: "wedding",      totalValue: 3500,  modelCost: 0,    editorCost: 700,  totalDeliverables: 2, editorId: "e2", editorName: "Bob Martinez",  editorPhone: "+91 98100 22222", status: "pending",     completedDeliverables: 0, paidAmount: 0,     createdAt: new Date(Date.now() - 2*86400000).toISOString(), deadline: new Date(Date.now() + 7*86400000).toISOString(), notes: "Cinematic style. Use provided music track.", revisionRequested: false },
@@ -153,6 +170,8 @@ router.post("/auth/login", (req, res) => {
   }
   const editor = editors.find((e) => (e.username === username || e.email.split("@")[0] === username) && e.password === password);
   if (editor) { res.json({ id: editor.id, name: editor.name, role: "editor", editorId: editor.id, specialization: editor.specialization }); return; }
+  const sales = salesTeam.find((s) => (s.username === username || s.email.split("@")[0] === username) && s.password === password);
+  if (sales) { res.json({ id: sales.id, name: sales.name, role: "sales", salesId: sales.id }); return; }
   res.status(401).json({ error: "Invalid username or password" });
 });
 
@@ -594,6 +613,98 @@ router.patch("/videos/:videoId/review", (req, res) => {
     pushNotif({ userId: video.editorId, type: "video_rejected", title: "Video Rejected", message: `${video.fileName} was rejected. ${note ? "Reason: " + note : ""}`, projectId: video.projectId, videoId: video.id });
   }
   res.json(video);
+});
+
+// ─── Sales Team ───────────────────────────────────────────────────────────────
+
+router.get("/sales-team", (_req, res) => {
+  res.json(salesTeam.map(({ password: _p, ...s }) => s));
+});
+
+router.get("/sales-team/:id", (req, res) => {
+  const s = salesTeam.find((sp) => sp.id === req.params.id);
+  if (!s) { res.status(404).json({ error: "Sales person not found" }); return; }
+  const { password: _p, ...safe } = s;
+  res.json(safe);
+});
+
+router.get("/sales-team/:id/stats", (req, res) => {
+  const s = salesTeam.find((sp) => sp.id === req.params.id);
+  if (!s) { res.status(404).json({ error: "Sales person not found" }); return; }
+  const myClients = clients.filter((c) => c.salesPersonId === s.id);
+  const clientIds = myClients.map((c) => c.id);
+  const myProjects = projects.filter((p) => p.clientId && clientIds.includes(p.clientId));
+  const totalRevenue = myProjects.reduce((sum, p) => sum + p.totalValue, 0);
+  const closedRevenue = myProjects.filter((p) => p.status === "completed").reduce((sum, p) => sum + p.totalValue, 0);
+  const { password: _p, ...saleSafe } = s;
+  res.json({
+    salesperson: saleSafe,
+    clientsClosed: myClients.length,
+    totalRevenue,
+    closedRevenue,
+    activeRevenue: myProjects.filter((p) => p.status === "in_progress").reduce((sum, p) => sum + p.totalValue, 0),
+    activeProjects: myProjects.filter((p) => p.status === "in_progress").length,
+    completedProjects: myProjects.filter((p) => p.status === "completed").length,
+    pendingProjects: myProjects.filter((p) => p.status === "pending").length,
+    totalProjects: myProjects.length,
+    targetAchieved: s.target > 0 ? Math.min(100, Math.round((myClients.length / s.target) * 100)) : 0,
+    clients: myClients.map((c) => ({ ...c, projects: myProjects.filter((p) => p.clientId === c.id) })),
+  });
+});
+
+router.post("/sales-team", (req, res) => {
+  const { name, username, password, email, phone, monthlySalary, target } = req.body;
+  if (!name || !username || !password || !phone) {
+    res.status(400).json({ error: "name, username, password, phone required" }); return;
+  }
+  if (salesTeam.find((sp) => sp.username === username)) {
+    res.status(400).json({ error: "Username already taken" }); return;
+  }
+  const s: SalesPerson = {
+    id: `s${salesIdCounter++}`, name, username, password, email: email || "",
+    phone, joinedAt: new Date().toISOString().split("T")[0],
+    monthlySalary: monthlySalary || 0, target: target || 5,
+  };
+  salesTeam.push(s);
+  res.status(201).json({ ...s, password: undefined });
+});
+
+router.patch("/sales-team/:id", (req, res) => {
+  const s = salesTeam.find((sp) => sp.id === req.params.id);
+  if (!s) { res.status(404).json({ error: "Sales person not found" }); return; }
+  const { name, username, password, email, phone, monthlySalary, target } = req.body;
+  if (username && username !== s.username && salesTeam.find((sp) => sp.username === username && sp.id !== s.id)) {
+    res.status(400).json({ error: "Username already taken" }); return;
+  }
+  if (name) s.name = name;
+  if (username) s.username = username;
+  if (password) s.password = password;
+  if (email !== undefined) s.email = email;
+  if (phone) s.phone = phone;
+  if (monthlySalary !== undefined) s.monthlySalary = monthlySalary;
+  if (target !== undefined) s.target = target;
+  res.json({ ...s, password: undefined });
+});
+
+router.delete("/sales-team/:id", (req, res) => {
+  const idx = salesTeam.findIndex((s) => s.id === req.params.id);
+  if (idx === -1) { res.status(404).json({ error: "Sales person not found" }); return; }
+  salesTeam.splice(idx, 1); res.json({ success: true });
+});
+
+// Assign / unassign client to sales person
+router.patch("/clients/:id/assign-sales", (req, res) => {
+  const client = clients.find((c) => c.id === req.params.id);
+  if (!client) { res.status(404).json({ error: "Client not found" }); return; }
+  const { salesPersonId } = req.body;
+  if (!salesPersonId) {
+    client.salesPersonId = undefined; client.salesPersonName = undefined;
+  } else {
+    const s = salesTeam.find((sp) => sp.id === salesPersonId);
+    if (!s) { res.status(404).json({ error: "Sales person not found" }); return; }
+    client.salesPersonId = s.id; client.salesPersonName = s.name;
+  }
+  res.json(client);
 });
 
 // ─── Notifications ────────────────────────────────────────────────────────────

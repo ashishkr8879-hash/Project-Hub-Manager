@@ -26,6 +26,12 @@ import EditorNotifications from "@/pages/editor-notifications";
 import EditorProfile from "@/pages/editor-profile";
 import EditorLayout from "@/components/editor-layout";
 
+// Sales team pages
+import SalesDashboard from "@/pages/sales-dashboard";
+import SalesProfile from "@/pages/sales-profile";
+import SalesTeamAdmin from "@/pages/sales";
+import SalesLayout from "@/components/sales-layout";
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 10000 } },
 });
@@ -35,6 +41,7 @@ function AdminRoute({ component: Component }: { component: React.ComponentType<a
   if (!isLoaded) return <Spinner />;
   if (!user) return <Redirect to="/login" />;
   if ((user as any).role === "editor") return <Redirect to="/editor" />;
+  if ((user as any).role === "sales") return <Redirect to="/sales" />;
   return <Layout><Component /></Layout>;
 }
 
@@ -44,6 +51,14 @@ function EditorRoute({ component: Component }: { component: React.ComponentType<
   if (!user) return <Redirect to="/login" />;
   if ((user as any).role !== "editor") return <Redirect to="/" />;
   return <EditorLayout><Component /></EditorLayout>;
+}
+
+function SalesRoute({ component: Component }: { component: React.ComponentType<any> }) {
+  const { user, isLoaded } = useAuth();
+  if (!isLoaded) return <Spinner />;
+  if (!user) return <Redirect to="/login" />;
+  if ((user as any).role !== "sales") return <Redirect to="/" />;
+  return <SalesLayout><Component /></SalesLayout>;
 }
 
 function Spinner() {
@@ -74,6 +89,13 @@ function Router() {
       <Route path="/editor/projects" component={() => <EditorRoute component={EditorProjects} />} />
       <Route path="/editor/notifications" component={() => <EditorRoute component={EditorNotifications} />} />
       <Route path="/editor/profile" component={() => <EditorRoute component={EditorProfile} />} />
+
+      {/* Sales team routes */}
+      <Route path="/sales" component={() => <SalesRoute component={SalesDashboard} />} />
+      <Route path="/sales/profile" component={() => <SalesRoute component={SalesProfile} />} />
+
+      {/* Admin sales management */}
+      <Route path="/admin/sales" component={() => <AdminRoute component={SalesTeamAdmin} />} />
 
       <Route component={NotFound} />
     </Switch>

@@ -211,7 +211,7 @@ export default function Login() {
           </button>
 
           <p className="text-center text-[10px] mt-2" style={{ color: "rgba(13,63,122,0.40)" }}>
-            admin · alice · bob · clara · david
+            admin · alice · bob · clara · david · rahul · priya
           </p>
         </form>
       </div>

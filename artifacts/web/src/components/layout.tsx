@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useListNotifications, useListPendingVideos } from "@workspace/api-client-react";
 import {
   LayoutDashboard, Briefcase, Users, UsersRound, Bell, CalendarDays,
-  Settings, LogOut, PlusCircle, Menu, X,
+  Settings, LogOut, PlusCircle, Menu, X, TrendingUp,
 } from "lucide-react";
 
 interface LayoutProps { children: React.ReactNode; }
@@ -13,14 +13,15 @@ const BRAND_BLUE = "#0d3f7a";
 const GOLD       = "#e8ab15";
 
 const navItems = [
-  { href: "/",          label: "Dashboard",      icon: LayoutDashboard },
-  { href: "/create",    label: "Create Project",  icon: PlusCircle      },
-  { href: "/projects",  label: "Projects",        icon: Briefcase       },
-  { href: "/clients",   label: "Clients",         icon: Users           },
-  { href: "/team",      label: "Team",            icon: UsersRound      },
-  { href: "/videos",    label: "Notifications",   icon: Bell            },
-  { href: "/calendar",  label: "Calendar",        icon: CalendarDays    },
-  { href: "/settings",  label: "Profile",         icon: Settings        },
+  { href: "/",           label: "Dashboard",      icon: LayoutDashboard },
+  { href: "/create",     label: "Create Project", icon: PlusCircle      },
+  { href: "/projects",   label: "Projects",       icon: Briefcase       },
+  { href: "/clients",    label: "Clients",        icon: Users           },
+  { href: "/team",       label: "Team",           icon: UsersRound      },
+  { href: "/admin/sales",label: "Sales Team",     icon: TrendingUp      },
+  { href: "/videos",     label: "Notifications",  icon: Bell            },
+  { href: "/calendar",   label: "Calendar",       icon: CalendarDays    },
+  { href: "/settings",   label: "Profile",        icon: Settings        },
 ];
 
 const bottomNavItems = [

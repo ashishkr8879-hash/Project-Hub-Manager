@@ -169,7 +169,7 @@ export default function Create() {
           <Check className="w-10 h-10 text-emerald-400" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">Project Created!</h2>
+          <h2 className="text-2xl font-bold" style={{ color: '#0d3f7a' }}>Project Created!</h2>
           <p className="text-sm text-zinc-400 mt-1">{createdProject?.projectName} has been created successfully</p>
         </div>
         <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-4 text-left space-y-2">
@@ -203,7 +203,7 @@ export default function Create() {
           </button>
         )}
         <div>
-          <h1 className="text-xl font-bold text-white">Create Project</h1>
+          <h1 className="text-xl font-bold" style={{ color: '#0d3f7a' }}>Create Project</h1>
           <p className="text-xs text-zinc-500 mt-0.5">
             {step === "type" ? "Step 1: Choose project type" : step === "client" ? "Step 2: Select client" : "Step 3: Project details"}
           </p>

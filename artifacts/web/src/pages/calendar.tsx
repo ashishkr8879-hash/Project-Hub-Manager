@@ -392,7 +392,7 @@ export default function Calendar() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white">Calendar</h2>
+          <h2 className="text-xl font-bold" style={{ color: '#0d3f7a' }}>Calendar</h2>
           <p className="text-zinc-400 text-xs mt-0.5">
             {view === "calendar" ? "Projects by deadline date" : "Team workload heatmap"}
           </p>

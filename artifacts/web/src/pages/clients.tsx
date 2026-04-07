@@ -239,7 +239,7 @@ export default function Clients() {
     <div className="space-y-5 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Clients</h1>
+          <h1 className="text-xl font-bold" style={{ color: '#0d3f7a' }}>Clients</h1>
           <p className="text-sm text-zinc-500 mt-0.5">{clients.length} total clients</p>
         </div>
         <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
@@ -250,7 +250,7 @@ export default function Clients() {
       {/* Summary bar */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-zinc-900 border border-zinc-800/60 rounded-2xl p-4 text-center">
-          <div className="text-2xl font-bold text-white">{clients.length}</div>
+          <div className="text-2xl font-bold" style={{ color: '#0d3f7a' }}>{clients.length}</div>
           <div className="text-xs text-zinc-500 mt-1">Total Clients</div>
         </div>
         <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4 text-center col-span-2">

@@ -279,6 +279,47 @@ html.light-mode .bg-zinc-800.rounded-md {
 html.light-mode [class*="hover:bg-zinc-8"]:hover { background-color: #e8eef6 !important; }
 html.light-mode [class*="hover:bg-zinc-7"]:hover { background-color: #d8e4ef !important; }
 
+/* ── Brand Blue: Replace Tailwind blue with #0d3f7a throughout ──────────── */
+/* Primary buttons */
+html.light-mode .bg-blue-600  { background-color: #0d3f7a !important; }
+html.light-mode .bg-blue-500  { background-color: #1a5295 !important; }
+html.light-mode .bg-blue-700  { background-color: #0a3264 !important; }
+html.light-mode [class*="hover\:bg-blue-7"]:hover { background-color: #0a3264 !important; }
+html.light-mode [class*="hover\:bg-blue-6"]:hover { background-color: #0d3f7a !important; }
+
+/* Link / accent text */
+html.light-mode .text-blue-700 { color: #0d3f7a !important; }
+html.light-mode .text-blue-600 { color: #0d3f7a !important; }
+html.light-mode .text-blue-500 { color: #1a5295 !important; }
+html.light-mode .text-blue-400 { color: #0d3f7a !important; }
+html.light-mode .text-blue-300 { color: #1a5295 !important; }
+
+/* Active tab / border */
+html.light-mode .border-blue-500 { border-color: #0d3f7a !important; }
+html.light-mode .border-blue-400 { border-color: #0d3f7a !important; }
+html.light-mode .border-blue-300 { border-color: #1a5295 !important; }
+
+/* Subtle blue tint backgrounds */
+html.light-mode .bg-blue-50  { background-color: #e8f0fb !important; }
+html.light-mode .bg-blue-100 { background-color: #d0e3f7 !important; }
+html.light-mode [class*="hover\:bg-blue-50"]:hover { background-color: #e8f0fb !important; }
+html.light-mode [class*="bg-blue-5"][class*="\/10"] { background-color: rgba(13,63,122,0.08) !important; }
+html.light-mode [class*="bg-blue-5"][class*="\/20"] { background-color: rgba(13,63,122,0.12) !important; }
+
+/* Form inputs: make them white with light border in light mode */
+html.light-mode input.bg-zinc-800,
+html.light-mode textarea.bg-zinc-800,
+html.light-mode select.bg-zinc-800 {
+  background-color: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #1e293b !important;
+}
+html.light-mode input.border-zinc-700,
+html.light-mode textarea.border-zinc-700,
+html.light-mode select.border-zinc-700 {
+  border-color: #d1d5db !important;
+}
+
 /* Shadows — lighter for light mode */
 html.light-mode {
   --shadow-2xs: 0px 1px 2px 0px rgba(15,61,122,0.08);

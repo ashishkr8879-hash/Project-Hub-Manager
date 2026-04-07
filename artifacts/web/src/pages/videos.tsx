@@ -220,7 +220,7 @@ export default function Videos() {
     <div className="space-y-5 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Notifications</h1>
+          <h1 className="text-xl font-bold" style={{ color: '#0d3f7a' }}>Notifications</h1>
           <p className="text-sm text-zinc-500 mt-0.5">
             {unreadCount > 0 ? `${unreadCount} unread · ` : ""}{pendingVideos.length} pending review{pendingVideos.length !== 1 ? "s" : ""}
           </p>

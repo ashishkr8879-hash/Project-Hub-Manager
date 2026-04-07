@@ -220,7 +220,7 @@ export default function Settings() {
         <div className="flex flex-wrap items-center gap-4">
           <img src={logoUrl} alt="Divayshakati" className="w-14 h-14 sm:w-16 sm:h-16 object-contain flex-shrink-0 drop-shadow-lg" />
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg sm:text-xl font-bold text-white">{profile?.name ?? "Admin"}</h1>
+            <h1 className="text-lg sm:text-xl font-bold" style={{ color: '#0d3f7a' }}>{profile?.name ?? "Admin"}</h1>
             <p className="text-sm text-amber-400 font-semibold">{profile?.businessName ?? "Divayshakati"}</p>
             <div className="flex items-center flex-wrap gap-3 mt-1.5">
               {profile?.email && <span className="text-xs text-zinc-500 flex items-center gap-1"><Mail className="w-3 h-3" />{profile.email}</span>}

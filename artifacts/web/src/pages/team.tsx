@@ -359,7 +359,7 @@ export default function Team() {
     <div className="space-y-5 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">Team</h1>
+          <h1 className="text-xl font-bold" style={{ color: '#0d3f7a' }}>Team</h1>
           <p className="text-sm text-zinc-500 mt-0.5">{editors.length} team members</p>
         </div>
         <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">

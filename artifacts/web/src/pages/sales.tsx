@@ -2,13 +2,15 @@ import { useState } from "react";
 import {
   useListSalesTeam, useGetSalesPersonStats, useCreateSalesPerson,
   useDeleteSalesPerson, useListClients, useAssignClientSalesPerson,
+  useCreateClient,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
   TrendingUp, Plus, Trash2, Users, IndianRupee, Target,
   Phone, Mail, ChevronDown, ChevronUp, X, Eye,
-  UserPlus, UserMinus, Briefcase,
+  UserPlus, UserMinus, Briefcase, Calendar, Building2, MapPin,
+  CheckCircle, Clock, AlertCircle,
 } from "lucide-react";
 import { SalesPerformanceCalendar } from "@/components/sales-performance-calendar";
 
@@ -22,11 +24,149 @@ function fmt(n: number) {
   return `₹${n}`;
 }
 
+// ─── Project status config ─────────────────────────────────────────────────────
+const projStatus: Record<string, { icon: any; bg: string; text: string; label: string }> = {
+  pending:     { icon: AlertCircle, bg: "bg-amber-50",   text: "text-amber-600",  label: "Pending"     },
+  in_progress: { icon: Clock,       bg: "bg-blue-50",    text: "text-blue-700",   label: "In Progress" },
+  completed:   { icon: CheckCircle, bg: "bg-emerald-50", text: "text-emerald-600",label: "Completed"   },
+};
+
+// ─── Assigned client row with expandable work details ──────────────────────────
+function AssignedClientRow({ client, onRemove, isPending }: { client: any; onRemove: () => void; isPending: boolean }) {
+  const [open, setOpen] = useState(false);
+  const projects: any[] = client.projects || [];
+  const totalRev = projects.reduce((s: number, p: any) => s + (p.amount || 0), 0);
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
+          style={{ backgroundColor: BRAND_BLUE }}>
+          {client.name.charAt(0)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold truncate" style={{ color: BRAND_BLUE }}>{client.name}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            {client.businessType && (
+              <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+                <Building2 className="w-2.5 h-2.5" />{client.businessType}
+              </span>
+            )}
+            {client.city && (
+              <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+                <MapPin className="w-2.5 h-2.5" />{client.city}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {projects.length > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+              style={{ backgroundColor: BRAND_BLUE + "15", color: BRAND_BLUE }}>
+              {projects.length} work
+            </span>
+          )}
+          {totalRev > 0 && (
+            <span className="text-[10px] font-bold" style={{ color: "#e8ab15" }}>{fmt(totalRev)}</span>
+          )}
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
+          >
+            {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+          <button
+            onClick={onRemove}
+            disabled={isPending}
+            className="flex items-center gap-0.5 text-[10px] font-medium text-red-400 hover:text-red-600 hover:bg-red-50 px-1.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <UserMinus className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+
+      {open && (
+        <div className="border-t border-slate-100 px-3 pb-3 pt-2 bg-slate-50 space-y-2">
+          {/* Contact row */}
+          <div className="flex flex-wrap gap-3">
+            {client.phone && (
+              <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                <Phone className="w-3 h-3 text-slate-400" />{client.phone}
+              </span>
+            )}
+            {client.email && (
+              <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                <Mail className="w-3 h-3 text-slate-400" />{client.email}
+              </span>
+            )}
+            {client.createdAt && (
+              <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                <Calendar className="w-3 h-3" />Since {new Date(client.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+              </span>
+            )}
+          </div>
+
+          {/* Work / Projects */}
+          <div>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+              <Briefcase className="w-3 h-3" />Work Details
+            </p>
+            {projects.length === 0 ? (
+              <p className="text-[10px] text-slate-400 italic">No projects yet</p>
+            ) : (
+              <div className="space-y-1.5">
+                {projects.map((p: any) => {
+                  const st = projStatus[p.status] ?? projStatus.pending;
+                  const Icon = st.icon;
+                  return (
+                    <div key={p.id} className="flex items-start gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2">
+                      <Icon className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${st.text}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-semibold truncate" style={{ color: BRAND_BLUE }}>{p.projectName}</p>
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                          {p.serviceType && <span className="text-[9px] text-slate-400">{p.serviceType}</span>}
+                          {p.deadline && (
+                            <span className="text-[9px] text-slate-400 flex items-center gap-0.5">
+                              <Calendar className="w-2.5 h-2.5" />
+                              {new Date(p.deadline).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
+                        {p.amount > 0 && (
+                          <span className="text-[10px] font-bold" style={{ color: "#e8ab15" }}>{fmt(p.amount)}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Client Management ────────────────────────────────────────────────────────
 function ClientManager({ personId, stats, onRefresh }: { personId: string; stats: any; onRefresh: () => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [subTab, setSubTab] = useState<"assigned" | "add_new" | "assign_existing">("assigned");
+
+  // For existing-client assign
   const { data: allClients = [] } = useListClients();
+  const [search, setSearch] = useState("");
+
+  // For new client form
+  const emptyForm = { name: "", phone: "", email: "", businessType: "", city: "" };
+  const [newClient, setNewClient] = useState(emptyForm);
+  const setF = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setNewClient((f) => ({ ...f, [k]: e.target.value }));
+
   const assignMut = useAssignClientSalesPerson({
     mutation: {
       onSuccess: () => {
@@ -38,110 +178,168 @@ function ClientManager({ personId, stats, onRefresh }: { personId: string; stats
     },
   });
 
-  const assignedIds  = new Set((stats?.clients || []).map((c: any) => c.id));
-  const unassigned   = allClients.filter((c) => !c.salesPersonId);
-  const assignedToOther = allClients.filter((c) => c.salesPersonId && c.salesPersonId !== personId);
-  const myClients    = allClients.filter((c) => c.salesPersonId === personId);
+  const createMut = useCreateClient({
+    mutation: {
+      onSuccess: async (created: any) => {
+        qc.invalidateQueries({ queryKey: ["/api/clients"] });
+        assignMut.mutate({ id: created.id, data: { salesPersonId: personId } });
+        setNewClient(emptyForm);
+        setSubTab("assigned");
+        toast({ title: "Client added!", description: `${created.name} has been added and assigned.` });
+      },
+      onError: () => toast({ title: "Error", description: "Failed to create client", variant: "destructive" }),
+    },
+  });
 
-  const [search, setSearch] = useState("");
-  const filteredAvail = [...unassigned, ...assignedToOther].filter((c) =>
+  const myClients      = stats?.clients || [];
+  const unassigned     = allClients.filter((c) => !c.salesPersonId);
+  const assignedOther  = allClients.filter((c) => c.salesPersonId && c.salesPersonId !== personId);
+  const available      = [...unassigned, ...assignedOther].filter((c) =>
     !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.businessType.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleAssign = (clientId: string) => {
-    assignMut.mutate({ id: clientId, data: { salesPersonId: personId } });
+  const handleAssign = (clientId: string) => assignMut.mutate({ id: clientId, data: { salesPersonId: personId } });
+  const handleRemove = (clientId: string) => assignMut.mutate({ id: clientId, data: { salesPersonId: null as any } });
+
+  const handleCreateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClient.name || !newClient.phone) {
+      toast({ title: "Name and Phone are required", variant: "destructive" }); return;
+    }
+    createMut.mutate({ data: newClient });
   };
-  const handleRemove = (clientId: string) => {
-    assignMut.mutate({ id: clientId, data: { salesPersonId: null } });
-  };
+
+  const inputCls = "w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-1 placeholder-slate-400";
+
+  const subTabs = [
+    { key: "assigned",         label: `Clients (${myClients.length})` },
+    { key: "add_new",          label: "Add New" },
+    { key: "assign_existing",  label: "Assign Existing" },
+  ] as const;
 
   return (
     <div className="space-y-3">
-      {/* Assigned clients */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <Users className="w-3.5 h-3.5" style={{ color: SALES_COLOR }} />
-          <span className="text-xs font-semibold" style={{ color: BRAND_BLUE }}>
-            Assigned Clients ({myClients.length})
-          </span>
-        </div>
-        {myClients.length === 0 ? (
-          <p className="text-[11px] text-slate-400 italic py-2 text-center">No clients assigned yet</p>
-        ) : (
-          <div className="space-y-1.5">
-            {myClients.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-                  style={{ backgroundColor: BRAND_BLUE }}>
-                  {c.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold truncate" style={{ color: BRAND_BLUE }}>{c.name}</p>
-                  <p className="text-[10px] text-slate-400">{c.businessType} · {c.city}</p>
-                </div>
-                <button
-                  onClick={() => handleRemove(c.id)}
-                  disabled={assignMut.isPending}
-                  className="flex items-center gap-1 text-[10px] font-medium text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  <UserMinus className="w-3 h-3" />Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Sub-tab bar */}
+      <div className="flex rounded-xl bg-slate-100 p-0.5 gap-0.5">
+        {subTabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setSubTab(t.key)}
+            className="flex-1 text-[11px] font-semibold py-1.5 rounded-lg transition-colors"
+            style={subTab === t.key
+              ? { backgroundColor: "white", color: BRAND_BLUE, boxShadow: "0 1px 3px rgba(0,0,0,.08)" }
+              : { color: "#94a3b8" }}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Divider */}
-      <div className="border-t border-slate-200" />
-
-      {/* Available clients to add */}
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <UserPlus className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-xs font-semibold text-slate-600">Add Client</span>
+      {/* ── Assigned Clients ── */}
+      {subTab === "assigned" && (
+        <div>
+          {myClients.length === 0 ? (
+            <div className="text-center py-6">
+              <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <p className="text-[11px] text-slate-400">No clients assigned yet</p>
+              <p className="text-[10px] text-slate-300 mt-0.5">Use "Add New" or "Assign Existing" to get started</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {myClients.map((c: any) => (
+                <AssignedClientRow
+                  key={c.id}
+                  client={c}
+                  onRemove={() => handleRemove(c.id)}
+                  isPending={assignMut.isPending}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search clients..."
-          className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 mb-2"
-          style={{ focusRingColor: SALES_COLOR + "40" } as any}
-        />
-        {filteredAvail.length === 0 ? (
-          <p className="text-[11px] text-slate-400 italic py-2 text-center">
-            {search ? "No clients match your search" : "All clients are already assigned"}
-          </p>
-        ) : (
-          <div className="space-y-1.5 max-h-52 overflow-y-auto">
-            {filteredAvail.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-                  style={{ backgroundColor: c.salesPersonId ? "#94a3b8" : BRAND_BLUE }}>
-                  {c.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold truncate text-slate-700">{c.name}</p>
-                  <p className="text-[10px] text-slate-400">
-                    {c.businessType} · {c.city}
-                    {c.salesPersonName && (
-                      <span className="ml-1 text-amber-500">· {c.salesPersonName}</span>
-                    )}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleAssign(c.id)}
-                  disabled={assignMut.isPending}
-                  className="flex items-center gap-1 text-[10px] font-medium text-white px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
-                  style={{ backgroundColor: SALES_COLOR }}
-                >
-                  <UserPlus className="w-3 h-3" />Add
-                </button>
-              </div>
-            ))}
+      )}
+
+      {/* ── Add New Client ── */}
+      {subTab === "add_new" && (
+        <form onSubmit={handleCreateSubmit} className="space-y-2.5">
+          <p className="text-[10px] text-slate-500 mb-1">Create a new client and auto-assign them to this executive.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] font-medium text-slate-600 mb-0.5 block">Name *</label>
+              <input className={inputCls} placeholder="Client name" value={newClient.name} onChange={setF("name")} />
+            </div>
+            <div>
+              <label className="text-[10px] font-medium text-slate-600 mb-0.5 block">Phone *</label>
+              <input className={inputCls} placeholder="+91 98xxx" value={newClient.phone} onChange={setF("phone")} />
+            </div>
           </div>
-        )}
-      </div>
+          <div>
+            <label className="text-[10px] font-medium text-slate-600 mb-0.5 block">Email</label>
+            <input type="email" className={inputCls} placeholder="client@email.com" value={newClient.email} onChange={setF("email")} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] font-medium text-slate-600 mb-0.5 block">Business Type</label>
+              <input className={inputCls} placeholder="e.g. Restaurant" value={newClient.businessType} onChange={setF("businessType")} />
+            </div>
+            <div>
+              <label className="text-[10px] font-medium text-slate-600 mb-0.5 block">City</label>
+              <input className={inputCls} placeholder="Mumbai" value={newClient.city} onChange={setF("city")} />
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={createMut.isPending || assignMut.isPending}
+            className="w-full py-2 text-xs font-semibold text-white rounded-xl transition-colors disabled:opacity-60"
+            style={{ backgroundColor: SALES_COLOR }}
+          >
+            {createMut.isPending ? "Creating..." : "Create & Assign Client"}
+          </button>
+        </form>
+      )}
+
+      {/* ── Assign Existing Client ── */}
+      {subTab === "assign_existing" && (
+        <div>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or business..."
+            className={inputCls + " mb-2"}
+          />
+          {available.length === 0 ? (
+            <p className="text-[11px] text-slate-400 italic py-3 text-center">
+              {search ? "No clients match your search" : "All clients are already assigned"}
+            </p>
+          ) : (
+            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+              {available.map((c) => (
+                <div key={c.id} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                    style={{ backgroundColor: c.salesPersonId ? "#94a3b8" : BRAND_BLUE }}>
+                    {c.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold truncate text-slate-700">{c.name}</p>
+                    <p className="text-[10px] text-slate-400">
+                      {c.businessType} · {c.city}
+                      {c.salesPersonName && <span className="ml-1 text-amber-500"> · {c.salesPersonName}</span>}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleAssign(c.id)}
+                    disabled={assignMut.isPending}
+                    className="flex items-center gap-1 text-[10px] font-medium text-white px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+                    style={{ backgroundColor: SALES_COLOR }}
+                  >
+                    <UserPlus className="w-3 h-3" />Assign
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

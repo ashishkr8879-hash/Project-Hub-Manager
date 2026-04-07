@@ -185,7 +185,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* ── Main content ─────────────────────────────────────────── */}
       <main className="flex-1 md:ml-60 flex flex-col min-h-screen">
-        <div className="p-3 sm:p-4 md:p-6 pt-16 md:pt-0 pb-20 md:pb-6 flex-1">
+        <div className="p-3 sm:p-4 md:p-6 pt-16 md:pt-8 pb-20 md:pb-6 flex-1">
           {children}
         </div>
       </main>

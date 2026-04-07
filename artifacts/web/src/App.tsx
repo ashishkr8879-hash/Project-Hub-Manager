@@ -29,6 +29,7 @@ import EditorLayout from "@/components/editor-layout";
 // Sales team pages
 import SalesDashboard from "@/pages/sales-dashboard";
 import SalesProfile from "@/pages/sales-profile";
+import SalesClients from "@/pages/sales-clients";
 import SalesTeamAdmin from "@/pages/sales";
 import SalesLayout from "@/components/sales-layout";
 
@@ -92,6 +93,7 @@ function Router() {
 
       {/* Sales team routes */}
       <Route path="/sales" component={() => <SalesRoute component={SalesDashboard} />} />
+      <Route path="/sales/clients" component={() => <SalesRoute component={SalesClients} />} />
       <Route path="/sales/profile" component={() => <SalesRoute component={SalesProfile} />} />
 
       {/* Admin sales management */}

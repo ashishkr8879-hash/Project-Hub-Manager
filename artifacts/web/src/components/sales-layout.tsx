@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { LayoutDashboard, User, LogOut, Menu, X, TrendingUp } from "lucide-react";
+import { LayoutDashboard, User, LogOut, Menu, X, TrendingUp, Users } from "lucide-react";
 
 interface SalesLayoutProps { children: React.ReactNode; }
 
 const navItems = [
-  { href: "/sales",         label: "My Dashboard",  icon: LayoutDashboard },
-  { href: "/sales/profile", label: "My Profile",    icon: User            },
+  { href: "/sales",          label: "My Dashboard",  icon: LayoutDashboard },
+  { href: "/sales/clients",  label: "My Clients",    icon: Users           },
+  { href: "/sales/profile",  label: "My Profile",    icon: User            },
 ];
 
 const BRAND_BLUE = "#0d3f7a";
